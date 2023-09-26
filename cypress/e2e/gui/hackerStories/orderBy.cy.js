@@ -1,3 +1,5 @@
+import data from '../../../resources/data.config';
+
 const options = { env: { snapshotOnly: true } };
 
 describe('Order by', options, () => {
@@ -6,7 +8,7 @@ describe('Order by', options, () => {
       method: 'GET',
       pathname: '**/search',
       query: {
-        query: 'React',
+        query: data.initialTerm,
         page: '0',
       },
     }).as('getStories');

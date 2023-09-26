@@ -1,7 +1,6 @@
-const options = { env: { snapshotOnly: true } };
+import data from '../../../resources/data.config';
 
-const initialTerm = 'React';
-const newTerm = 'Cypress';
+const options = { env: { snapshotOnly: true } };
 
 describe('Search', options, () => {
   beforeEach(() => {
@@ -11,7 +10,7 @@ describe('Search', options, () => {
       method: 'GET',
       pathname: '**/search',
       query: {
-        query: newTerm,
+        query: data.newTerm,
         page: '0',
       },
     }).as('getNewTermStories');
@@ -20,28 +19,28 @@ describe('Search', options, () => {
   });
 
   it('types and hits ENTER', () => {
-    cy.get('#search').type(`${newTerm}{enter}`);
+    cy.get('#search').type(`${data.newTerm}{enter}`);
 
     cy.wait('@getNewTermStories');
 
     cy.get('.item').should('have.length', 20);
-    cy.get('.item').first().should('contain', newTerm);
-    cy.get(`button:contains(${initialTerm})`).should('be.visible');
+    cy.get('.item').first().should('contain', data.newTerm);
+    cy.get(`button:contains(${data.initialTerm})`).should('be.visible');
   });
 
   it('types and clicks the submit button', () => {
-    cy.get('#search').type(newTerm);
+    cy.get('#search').type(data.newTerm);
     cy.contains('Submit').click();
 
     cy.wait('@getNewTermStories');
 
     cy.get('.item').should('have.length', 20);
-    cy.get('.item').first().should('contain', newTerm);
-    cy.get(`button:contains(${initialTerm})`).should('be.visible');
+    cy.get('.item').first().should('contain', data.newTerm);
+    cy.get(`button:contains(${data.initialTerm})`).should('be.visible');
   });
 
   it('types and submits the form directly', () => {
-    cy.get('#search').type(newTerm);
+    cy.get('#search').type(data.newTerm);
     cy.get('form').submit();
 
     cy.wait('@getNewTermStories');

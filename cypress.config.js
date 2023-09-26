@@ -9,6 +9,5 @@ module.exports = defineConfig({
     },
     experimentalRunAllSpecs: true,
   },
-  fixturesFolder: false,
   video: false,
 });

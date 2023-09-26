@@ -1,9 +1,7 @@
 import { faker } from '@faker-js/faker';
+import data from '../../../resources/data.config';
 
 const options = { env: { snapshotOnly: true } };
-
-const initialTerm = 'React';
-const newTerm = 'Cypress';
 
 describe('Last searches', options, () => {
   beforeEach(() => {
@@ -11,7 +9,7 @@ describe('Last searches', options, () => {
       method: 'GET',
       pathname: '**/search',
       query: {
-        query: 'React',
+        query: data.initialTerm,
         page: '0',
       },
     }).as('getStories');
@@ -22,7 +20,7 @@ describe('Last searches', options, () => {
       method: 'GET',
       pathname: '**/search',
       query: {
-        query: newTerm,
+        query: data.newTerm,
         page: '0',
       },
     }).as('getNewTermStories');
@@ -31,17 +29,17 @@ describe('Last searches', options, () => {
   });
 
   it('searches via the last searched term', () => {
-    cy.get('#search').type(`${newTerm}{enter}`);
+    cy.get('#search').type(`${data.newTerm}{enter}`);
 
     cy.wait('@getNewTermStories');
 
-    cy.get(`button:contains(${initialTerm})`).should('be.visible').click();
+    cy.get(`button:contains(${data.initialTerm})`).should('be.visible').click();
 
     cy.wait('@getStories');
 
     cy.get('.item').should('have.length', 20);
-    cy.get('.item').first().should('contain', initialTerm);
-    cy.get(`button:contains(${newTerm})`).should('be.visible');
+    cy.get('.item').first().should('contain', data.initialTerm);
+    cy.get(`button:contains(${data.newTerm})`).should('be.visible');
   });
 
   it('shows a max of 5 buttons for the last searched terms', () => {

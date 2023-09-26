@@ -6,7 +6,7 @@ Please create a file named `cypress.config.json` in the root folder and fill it 
 {
   "user_name": "USER_NAME",
   "user_password": "USER_PASSWORD",
-  "gitlab_access_token": "GILAB-ACCESS_TOKEN"
+  "gitlab_access_token": "GILAB_ACCESS_TOKEN"
 }
 ```
 
