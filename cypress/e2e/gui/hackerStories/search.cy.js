@@ -15,11 +15,11 @@ describe('Search', options, () => {
       },
     }).as('getNewTermStories');
 
-    cy.get('#search').clear();
+    cy.get('#search').should('be.visible').clear();
   });
 
   it('types and hits ENTER', () => {
-    cy.get('#search').type(`${data.newTerm}{enter}`);
+    cy.get('#search').should('be.visible').type(`${data.newTerm}{enter}`);
 
     cy.wait('@getNewTermStories');
 
@@ -29,8 +29,8 @@ describe('Search', options, () => {
   });
 
   it('types and clicks the submit button', () => {
-    cy.get('#search').type(data.newTerm);
-    cy.contains('Submit').click();
+    cy.get('#search').should('be.visible').type(data.newTerm);
+    cy.contains('Submit').should('be.visible').click();
 
     cy.wait('@getNewTermStories');
 
@@ -40,7 +40,7 @@ describe('Search', options, () => {
   });
 
   it('types and submits the form directly', () => {
-    cy.get('#search').type(data.newTerm);
+    cy.get('#search').should('be.visible').type(data.newTerm);
     cy.get('form').submit();
 
     cy.wait('@getNewTermStories');

@@ -23,7 +23,10 @@ describe('Order by', options, () => {
   });
 
   it('orders by title', () => {
-    cy.get('.list-header-button:contains(Title)').as('titleHeader').click();
+    cy.get('.list-header-button:contains(Title)')
+      .as('titleHeader')
+      .should('be.visible')
+      .click();
 
     cy.get('.item')
       .first()
@@ -36,7 +39,7 @@ describe('Order by', options, () => {
       stories.hits[0].url
     );
 
-    cy.get('@titleHeader').click();
+    cy.get('@titleHeader').should('be.visible').click();
 
     cy.get('.item')
       .first()
@@ -51,14 +54,17 @@ describe('Order by', options, () => {
   });
 
   it('orders by author', () => {
-    cy.get('.list-header-button:contains(Author)').as('authorHeader').click();
+    cy.get('.list-header-button:contains(Author)')
+      .as('authorHeader')
+      .should('be.visible')
+      .click();
 
     cy.get('.item')
       .first()
       .should('be.visible')
       .and('contain', stories.hits[0].author);
 
-    cy.get('@authorHeader').click();
+    cy.get('@authorHeader').should('be.visible').click();
 
     cy.get('.item')
       .first()
@@ -69,6 +75,7 @@ describe('Order by', options, () => {
   it('orders by comments', () => {
     cy.get('.list-header-button:contains(Comments)')
       .as('commentsHeader')
+      .should('be.visible')
       .click();
 
     cy.get('.item')
@@ -76,7 +83,7 @@ describe('Order by', options, () => {
       .should('be.visible')
       .and('contain', stories.hits[1].num_comments);
 
-    cy.get('@commentsHeader').click();
+    cy.get('@commentsHeader').should('be.visible').click();
 
     cy.get('.item')
       .first()
@@ -85,14 +92,17 @@ describe('Order by', options, () => {
   });
 
   it('orders by points', () => {
-    cy.get('.list-header-button:contains(Title)').as('pointsHeader').click();
+    cy.get('.list-header-button:contains(Title)')
+      .as('pointsHeader')
+      .should('be.visible')
+      .click();
 
     cy.get('.item')
       .first()
       .should('be.visible')
       .and('contain', stories.hits[0].points);
 
-    cy.get('@pointsHeader').click();
+    cy.get('@pointsHeader').should('be.visible').click();
 
     cy.get('.item')
       .first()

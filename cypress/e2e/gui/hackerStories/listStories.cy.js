@@ -29,7 +29,7 @@ describe('List of stories', options, () => {
     }).as('getNextStories');
 
     cy.get('.item').should('have.length', 20);
-    cy.contains('More').click();
+    cy.contains('More').should('be.visible').click();
 
     cy.wait('@getNextStories');
 
@@ -37,7 +37,7 @@ describe('List of stories', options, () => {
   });
 
   it('shows only nineteen stories after dimissing the first story', () => {
-    cy.get('.button-small').first().click();
+    cy.get('.button-small').first().should('be.visible').click();
 
     cy.get('.item').should('have.length', 19);
   });

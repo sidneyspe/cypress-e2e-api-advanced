@@ -8,6 +8,17 @@
     "test": "cypress run",
     "cy:open": "cypress open"
   },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
   "keywords": [
     "Cypress intermediate",
     "Talking About Testing",
@@ -33,6 +44,8 @@
     "@faker-js/faker": "^8.1.0",
     "cypress": "^13.2.0",
     "cypress-localstorage-commands": "^2.2.4",
-    "cypress-plugin-api": "^2.11.1"
+    "cypress-plugin-api": "^2.11.1",
+    "husky": "^8.0.3",
+    "lint-staged": "^14.0.1"
   }
 }

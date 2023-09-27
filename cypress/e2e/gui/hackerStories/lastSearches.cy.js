@@ -25,11 +25,11 @@ describe('Last searches', options, () => {
       },
     }).as('getNewTermStories');
 
-    cy.get('#search').clear();
+    cy.get('#search').should('be.visible').clear();
   });
 
   it('searches via the last searched term', () => {
-    cy.get('#search').type(`${data.newTerm}{enter}`);
+    cy.get('#search').should('be.visible').type(`${data.newTerm}{enter}`);
 
     cy.wait('@getNewTermStories');
 
@@ -49,8 +49,10 @@ describe('Last searches', options, () => {
     }).as('getRandomStories');
 
     Cypress._.times(6, () => {
-      cy.get('#search').clear();
-      cy.get('#search').type(`${faker.random.word()}{enter}`);
+      cy.get('#search').should('be.visible').clear();
+      cy.get('#search')
+        .should('be.visible')
+        .type(`${faker.random.word()}{enter}`);
       cy.wait('@getRandomStories');
     });
 

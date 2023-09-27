@@ -49,7 +49,7 @@ describe('List of stories', options, () => {
   });
 
   it('shows only less story after dimissing the first one', () => {
-    cy.get('.button-small').first().click();
+    cy.get('.button-small').first().should('be.visible').click();
 
     cy.get('.item').should('have.length', 1);
   });

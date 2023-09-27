@@ -15,7 +15,7 @@ describe('Last searches', options, () => {
 
     cy.visit('/');
 
-    cy.get('#search').clear();
+    cy.get('#search').should('be.visible').clear();
   });
 
   it('shows a max of 5 buttons for the last searched terms', () => {
@@ -28,8 +28,10 @@ describe('Last searches', options, () => {
     ).as('getRandomStories');
 
     Cypress._.times(6, () => {
-      cy.get('#search').clear();
-      cy.get('#search').type(`${faker.random.word()}{enter}`);
+      cy.get('#search').should('be.visible').clear();
+      cy.get('#search')
+        .should('be.visible')
+        .type(`${faker.random.word()}{enter}`);
       cy.wait('@getRandomStories');
     });
 
