@@ -20,6 +20,10 @@ module.exports = {
     'no-param-reassign': 'off',
     camelcase: 'off',
     'no-unused-vars': ['error', { argsIgnorePattern: 'next' }],
+    'import/no-extraneous-dependencies': [
+      'error',
+      { devDependencies: ['**/*.js', '**/*.spec.js'] },
+    ],
     'cypress/no-assigning-return-values': 'error',
     'cypress/no-unnecessary-waiting': 'error',
     'cypress/assertion-before-screenshot': 'warn',

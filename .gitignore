@@ -3,4 +3,5 @@ cypress/screenshots/
 cypress/videos/
 node_modules/
 yarn.lock
-
+cypress/results/
+cypress/reports/

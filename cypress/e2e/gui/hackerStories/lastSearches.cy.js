@@ -33,9 +33,13 @@ describe('Last searches', options, () => {
 
     cy.wait('@getNewTermStories');
 
+    cy.getLocalStorage('search').should('be.equal', data.newTerm);
+
     cy.get(`button:contains(${data.initialTerm})`).should('be.visible').click();
 
     cy.wait('@getStories');
+
+    cy.getLocalStorage('search').should('be.equal', data.initialTerm);
 
     cy.get('.item').should('have.length', 20);
     cy.get('.item').first().should('contain', data.initialTerm);
@@ -49,11 +53,11 @@ describe('Last searches', options, () => {
     }).as('getRandomStories');
 
     Cypress._.times(6, () => {
+      const randomWord = faker.random.word();
       cy.get('#search').should('be.visible').clear();
-      cy.get('#search')
-        .should('be.visible')
-        .type(`${faker.random.word()}{enter}`);
+      cy.get('#search').should('be.visible').type(`${randomWord}{enter}`);
       cy.wait('@getRandomStories');
+      cy.getLocalStorage('search').should('be.equal', randomWord);
     });
 
     cy.get('.last-searches button').should('have.length', 5);

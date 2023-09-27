@@ -45,6 +45,6 @@ describe('Errors', options, () => {
     cy.visit('/');
     cy.wait('@getNetworkFailure');
 
-    cy.get('p:contains(Something went wrong ...)').should('be.visible');
+    cy.get('p:contains(Something!! went wrong ...)').should('be.visible');
   });
 });

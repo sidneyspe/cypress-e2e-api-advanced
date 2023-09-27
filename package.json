@@ -6,7 +6,16 @@
   "scripts": {
     "lint": "eslint  cypress --ext .js --fix",
     "test": "cypress run",
-    "cy:open": "cypress open"
+    "cy:open": "cypress open",
+    "precy:run": "rm -rf cypress/screenshots cypress/results cypress/reports",
+    "report:cleanup": "rm -fr cypress/report/",
+    "video:cleanup": "rm -fr cypress/videos/",
+    "screenshots:cleanup": "rm -fr cypress/screenshots/",
+    "test:e2e": "cypress run --headless --browser chrome --no-exit",
+    "report:merge": "mochawesome-merge cypress/results/json/*.json > cypress/results/output.json",
+    "report:generate": "marge cypress/results/output.json --reportDir cypress/results/ --inline --chart true",
+    "report:copyScreenshots": "cp -r cypress/screenshots cypress/results/",
+    "cy:all": "yarn precy:run && yarn test || yarn report:merge && yarn report:generate && yarn report:copyScreenshots"
   },
   "husky": {
     "hooks": {
@@ -38,14 +47,19 @@
     "eslint-plugin-n": "^15.2.0",
     "eslint-plugin-prettier": "5.0.0-alpha.2",
     "eslint-plugin-promise": "^6.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "mochawesome": "^7.1.3",
+    "mochawesome-merge": "^4.3.0",
+    "mochawesome-report-generator": "^6.2.0"
   },
   "dependencies": {
     "@faker-js/faker": "^8.1.0",
     "cypress": "^13.2.0",
     "cypress-localstorage-commands": "^2.2.4",
+    "cypress-multi-reporters": "^1.6.3",
     "cypress-plugin-api": "^2.11.1",
     "husky": "^8.0.3",
     "lint-staged": "^14.0.1"
+   
   }
 }

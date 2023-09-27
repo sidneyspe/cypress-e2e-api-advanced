@@ -1,5 +1,4 @@
 import { faker } from '@faker-js/faker';
-import data from '../../../resources/data.config';
 
 const options = { env: { snapshotOnly: true } };
 
@@ -28,13 +27,15 @@ describe('Last searches', options, () => {
     ).as('getRandomStories');
 
     Cypress._.times(6, () => {
+      const randomWord = faker.random.word();
       cy.get('#search').should('be.visible').clear();
-      cy.get('#search')
-        .should('be.visible')
-        .type(`${faker.random.word()}{enter}`);
+      cy.get('#search').should('be.visible').type(`${randomWord}{enter}`);
       cy.wait('@getRandomStories');
+      cy.getLocalStorage('search').should('be.equal', randomWord);
     });
 
-    cy.get('.last-searches button').should('have.length', 5);
+    cy.get('.last-searches').within(() => {
+      cy.get('button').should('have.length', 5);
+    });
   });
 });

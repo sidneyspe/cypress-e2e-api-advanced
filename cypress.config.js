@@ -8,6 +8,10 @@ module.exports = defineConfig({
       requestMode: true,
     },
     experimentalRunAllSpecs: true,
+    reporter: 'cypress-multi-reporters',
+    reporterOptions: {
+      configFile: 'reporter-config.json',
+    },
   },
   video: false,
 });

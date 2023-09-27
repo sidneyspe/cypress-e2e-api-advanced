@@ -23,6 +23,8 @@ describe('Search', options, () => {
 
     cy.wait('@getNewTermStories');
 
+    cy.getLocalStorage('search').should('be.equal', data.newTerm);
+
     cy.get('.item').should('have.length', 20);
     cy.get('.item').first().should('contain', data.newTerm);
     cy.get(`button:contains(${data.initialTerm})`).should('be.visible');
@@ -34,6 +36,8 @@ describe('Search', options, () => {
 
     cy.wait('@getNewTermStories');
 
+    cy.getLocalStorage('search').should('be.equal', data.newTerm);
+
     cy.get('.item').should('have.length', 20);
     cy.get('.item').first().should('contain', data.newTerm);
     cy.get(`button:contains(${data.initialTerm})`).should('be.visible');
@@ -44,6 +48,8 @@ describe('Search', options, () => {
     cy.get('form').submit();
 
     cy.wait('@getNewTermStories');
+
+    cy.getLocalStorage('search').should('be.equal', data.newTerm);
 
     cy.get('.item').should('have.length', 20);
   });
