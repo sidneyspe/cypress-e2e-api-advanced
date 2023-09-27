@@ -39,7 +39,7 @@ describe('Order by', options, () => {
       stories.hits[0].url
     );
 
-    cy.get('@titleHeader').should('be.visible').click();
+    cy.get('@titleHeader').click();
 
     cy.get('.item')
       .first()
@@ -64,7 +64,7 @@ describe('Order by', options, () => {
       .should('be.visible')
       .and('contain', stories.hits[0].author);
 
-    cy.get('@authorHeader').should('be.visible').click();
+    cy.get('@authorHeader').click();
 
     cy.get('.item')
       .first()
@@ -83,7 +83,7 @@ describe('Order by', options, () => {
       .should('be.visible')
       .and('contain', stories.hits[1].num_comments);
 
-    cy.get('@commentsHeader').should('be.visible').click();
+    cy.get('@commentsHeader').click();
 
     cy.get('.item')
       .first()
@@ -102,7 +102,7 @@ describe('Order by', options, () => {
       .should('be.visible')
       .and('contain', stories.hits[0].points);
 
-    cy.get('@pointsHeader').should('be.visible').click();
+    cy.get('@pointsHeader').click();
 
     cy.get('.item')
       .first()
