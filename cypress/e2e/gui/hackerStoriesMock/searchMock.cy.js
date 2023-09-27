@@ -52,4 +52,8 @@ describe('Search', options, () => {
     cy.get('.item').should('have.length', 2);
     cy.get(`button:contains(${data.initialTerm})`).should('be.visible');
   });
+
+  it('shows no story when none is returned', () => {
+    cy.get('.item').should('not.exist');
+  });
 });
