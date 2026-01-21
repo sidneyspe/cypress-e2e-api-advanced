@@ -4,18 +4,24 @@
   "description": "course about cypress advanced using e2e and api tests (Escola Talking About Testing)",
   "main": "cypress.config.js",
   "scripts": {
-    "lint": "eslint  cypress --ext .js --fix",
+    "lint": "eslint cypress --ext .js --fix",
     "test": "cypress run",
     "cy:open": "cypress open",
     "precy:run": "rm -rf cypress/screenshots cypress/results cypress/reports",
-    "report:cleanup": "rm -fr cypress/report/",
-    "video:cleanup": "rm -fr cypress/videos/",
-    "screenshots:cleanup": "rm -fr cypress/screenshots/",
-    "test:e2e": "cypress run --headless --browser chrome --no-exit",
+    "report:cleanup": "rm -rf cypress/results/report cypress/results/json",
+    "video:cleanup": "rm -rf cypress/videos/",
+    "screenshots:cleanup": "rm -rf cypress/screenshots/",
+    "test:e2e": "cypress run --headless --browser chrome",
+    "test:e2e:mock": "cypress run --spec 'cypress/e2e/hackerStoriesMock/**/*.cy.js'",
+    "test:e2e:real": "cypress run --spec 'cypress/e2e/hackerStories/**/*.cy.js'",
     "report:merge": "mochawesome-merge cypress/results/json/*.json > cypress/results/output.json",
-    "report:generate": "marge cypress/results/output.json --reportDir cypress/results/ --inline --chart true",
-    "report:copyScreenshots": "cp -r cypress/screenshots cypress/results/",
-    "cy:all": "yarn precy:run && yarn test || yarn report:merge && yarn report:generate && yarn report:copyScreenshots"
+    "report:mochawesome": "marge cypress/results/output.json --reportDir cypress/results/mochawesome --inline --charts true",
+    "report:custom": "node cypress/report-template/report-generator.js --input cypress/results/output.json --output cypress/results/report --name 'Hacker Stories' --theme dark",
+    "report:generate": "npm run report:mochawesome && npm run report:custom",
+    "report:copyAssets": "cp -r cypress/screenshots cypress/results/report/ 2>/dev/null || true && cp -r cypress/videos cypress/results/report/ 2>/dev/null || true",
+    "report:open": "start cypress/results/report/index.html || open cypress/results/report/index.html || xdg-open cypress/results/report/index.html",
+    "cy:all": "npm run precy:run && npm run test && npm run report:merge && npm run report:generate && npm run report:copyAssets",
+    "cy:all:open": "npm run cy:all && npm run report:open"
   },
   "husky": {
     "hooks": {
@@ -24,7 +30,7 @@
   },
   "lint-staged": {
     "*.js": [
-      "yarn lint",
+      "npm run lint",
       "git add"
     ]
   },
