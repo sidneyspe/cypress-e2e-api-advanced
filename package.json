@@ -16,7 +16,7 @@
     "test:e2e:real": "cypress run --spec \"cypress/e2e/hackerStories/**/*.cy.js\"",
     "report:merge": "mochawesome-merge cypress/results/json/*.json > cypress/results/output.json",
     "report:mochawesome": "marge cypress/results/output.json --reportDir cypress/results/mochawesome --inline --charts true",
-    "report:custom": "node cypress/report-template/report-generator.js --input cypress/results/output.json --output cypress/results/report --name \"Hacker Stories\" --theme dark",
+    "report:custom": "node cypress/report-template/report-generator.js --input cypress/results/output.json --output cypress/results/report --name \"Hacker Stories\" --theme dark --squad qa-core --exec-type regression --product hacker-stories --module stories --functionality e2e",
     "report:generate": "npm run report:mochawesome && npm run report:custom",
     "report:copyAssets": "node cypress/report-template/copy-assets.js",
     "report:open": "node -e \"require('child_process').exec(process.platform==='win32'?'start cypress/results/report/index.html':process.platform==='darwin'?'open cypress/results/report/index.html':'xdg-open cypress/results/report/index.html')\"",

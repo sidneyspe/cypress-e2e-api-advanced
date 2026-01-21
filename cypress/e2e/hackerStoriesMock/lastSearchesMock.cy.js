@@ -10,7 +10,7 @@ describe('Last Searches (Mock)', { env: { snapshotOnly: true } }, () => {
 
     cy.visit('/');
 
-    cy.get(SELECTORS.search.input).should('be.visible').clear();
+    cy.get(SELECTORS.search.input).should('not.be.visible').clear();
   });
 
   it('shows a max of 5 buttons for the last searched terms', () => {

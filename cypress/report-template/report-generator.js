@@ -1,19 +1,29 @@
 /**
  * Custom Report Generator for Cypress Tests
  * Uses Tailwind CSS for styling with full customization support
- * Features: Interactive charts, detailed test view, error formatting, i18n
+ * Features: Interactive charts, detailed test view, error formatting, i18n, history, tags
  */
 
 const fs = require('fs');
 const path = require('path');
 
-// Load theme configuration
+// Load configurations
 let themeConfig;
+let executionConfig;
+
 try {
   themeConfig = require('./theme.config.js');
 } catch (e) {
   themeConfig = getDefaultTheme();
 }
+
+try {
+  executionConfig = require('./execution-config.js');
+} catch (e) {
+  executionConfig = getDefaultExecutionConfig();
+}
+
+const HistoryManager = require('./history-manager.js');
 
 function getDefaultTheme() {
   return {
@@ -32,18 +42,123 @@ function getDefaultTheme() {
   };
 }
 
-// Translations
+function getDefaultExecutionConfig() {
+  return {
+    squads: [{ id: 'qa-core', name: 'QA Core' }],
+    executionTypes: [{ id: 'regression', name: 'Regressivo' }],
+    products: [{ id: 'default', name: 'Default' }],
+    modules: [{ id: 'general', name: 'Geral' }],
+    functionalities: [
+      { id: 'e2e', name: 'E2E' },
+      { id: 'api', name: 'API' },
+    ],
+    defaults: {
+      squad: 'qa-core',
+      executionType: 'regression',
+      product: 'default',
+      module: 'general',
+      functionality: 'e2e',
+    },
+  };
+}
+
+// Translations - PT-BR is default
 const translations = {
+  'pt-BR': {
+    testReport: 'Relatorio de Testes',
+    dashboard: 'Painel',
+    testResults: 'Resultados dos Testes',
+    coverage: 'Cobertura',
+    history: 'Historico',
+    executionSummary: 'Resumo da Execucao e Analises',
+    totalTests: 'Total de Testes',
+    passed: 'Passou',
+    failed: 'Falhou',
+    skipped: 'Ignorado',
+    pending: 'Pendente',
+    passRate: 'Taxa de Sucesso',
+    testResultsDistribution: 'Distribuicao dos Resultados',
+    testTypeDistribution: 'Distribuicao por Tipo de Teste',
+    clickForDetails: 'Clique para ver detalhes',
+    clickBarsForDetails: 'Clique nas barras para detalhes',
+    executionMetrics: 'Metricas de Execucao',
+    totalDuration: 'Duracao Total',
+    avgPerTest: 'Media por Teste',
+    testSuites: 'Suites de Teste',
+    healthStatus: 'Status de Saude',
+    excellent: 'Excelente',
+    good: 'Bom',
+    needsWork: 'Precisa Melhorar',
+    showingAllTests: 'Mostrando todos os testes',
+    showingTests: 'Mostrando testes {status}',
+    all: 'Todos',
+    featureCoverage: 'Cobertura por Funcionalidade',
+    testDetails: 'Detalhes do Teste',
+    testPath: 'Caminho do Teste',
+    fullTitle: 'Titulo Completo',
+    duration: 'Duracao',
+    speed: 'Velocidade',
+    status: 'Status',
+    file: 'Arquivo',
+    errorMessage: 'Mensagem de Erro',
+    stackTrace: 'Stack Trace',
+    actual: 'Atual',
+    expected: 'Esperado',
+    diff: 'Diferenca',
+    testCode: 'Codigo do Teste',
+    screenshot: 'Captura de Tela',
+    export: 'Exportar',
+    theme: 'Tema',
+    language: 'Idioma',
+    e2eTests: 'Testes E2E',
+    mockTests: 'Testes Mock',
+    integration: 'Integracao',
+    unit: 'Unitario',
+    total: 'total',
+    noTestsFound: 'Nenhum teste encontrado',
+    noCoverageData: 'Sem dados de cobertura',
+    // Tags & Metadata
+    executionTags: 'Tags da Execucao',
+    squad: 'Squad/Time',
+    executionType: 'Tipo de Execucao',
+    executionDate: 'Data da Execucao',
+    product: 'Produto',
+    module: 'Modulo',
+    functionality: 'Funcionalidade',
+    selectSquad: 'Selecione a Squad',
+    selectType: 'Selecione o Tipo',
+    selectProduct: 'Selecione o Produto',
+    selectModule: 'Selecione o Modulo',
+    selectFunctionality: 'Selecione a Funcionalidade',
+    // History
+    executionHistory: 'Historico de Execucoes',
+    viewHistory: 'Ver Historico',
+    selectDate: 'Selecionar Data',
+    today: 'Hoje',
+    noHistoryData: 'Nenhum historico disponivel',
+    lastExecution: 'Ultima Execucao',
+    // Date picker
+    dateFormat: 'DD/MM/AAAA',
+    pickDate: 'Escolher Data',
+    // Execution types
+    release: 'Release',
+    regression: 'Regressivo',
+    smoke: 'Smoke',
+    sanity: 'Sanity',
+    exploratory: 'Exploratorio',
+  },
   en: {
     testReport: 'Test Report',
     dashboard: 'Dashboard',
     testResults: 'Test Results',
     coverage: 'Coverage',
+    history: 'History',
     executionSummary: 'Execution Summary & Analytics',
     totalTests: 'Total Tests',
     passed: 'Passed',
     failed: 'Failed',
     skipped: 'Skipped',
+    pending: 'Pending',
     passRate: 'Pass Rate',
     testResultsDistribution: 'Test Results Distribution',
     testTypeDistribution: 'Test Type Distribution',
@@ -85,58 +200,35 @@ const translations = {
     total: 'total',
     noTestsFound: 'No tests found',
     noCoverageData: 'No coverage data',
-  },
-  'pt-BR': {
-    testReport: 'Relatório de Testes',
-    dashboard: 'Painel',
-    testResults: 'Resultados dos Testes',
-    coverage: 'Cobertura',
-    executionSummary: 'Resumo da Execução e Análises',
-    totalTests: 'Total de Testes',
-    passed: 'Passou',
-    failed: 'Falhou',
-    skipped: 'Ignorado',
-    passRate: 'Taxa de Sucesso',
-    testResultsDistribution: 'Distribuição dos Resultados',
-    testTypeDistribution: 'Distribuição por Tipo de Teste',
-    clickForDetails: 'Clique para ver detalhes',
-    clickBarsForDetails: 'Clique nas barras para detalhes',
-    executionMetrics: 'Métricas de Execução',
-    totalDuration: 'Duração Total',
-    avgPerTest: 'Média por Teste',
-    testSuites: 'Suites de Teste',
-    healthStatus: 'Status de Saúde',
-    excellent: 'Excelente',
-    good: 'Bom',
-    needsWork: 'Precisa Melhorar',
-    showingAllTests: 'Mostrando todos os testes',
-    showingTests: 'Mostrando testes {status}',
-    all: 'Todos',
-    featureCoverage: 'Cobertura por Funcionalidade',
-    testDetails: 'Detalhes do Teste',
-    testPath: 'Caminho do Teste',
-    fullTitle: 'Título Completo',
-    duration: 'Duração',
-    speed: 'Velocidade',
-    status: 'Status',
-    file: 'Arquivo',
-    errorMessage: 'Mensagem de Erro',
-    stackTrace: 'Stack Trace',
-    actual: 'Atual',
-    expected: 'Esperado',
-    diff: 'Diferença',
-    testCode: 'Código do Teste',
-    screenshot: 'Captura de Tela',
-    export: 'Exportar',
-    theme: 'Tema',
-    language: 'Idioma',
-    e2eTests: 'Testes E2E',
-    mockTests: 'Testes Mock',
-    integration: 'Integração',
-    unit: 'Unitário',
-    total: 'total',
-    noTestsFound: 'Nenhum teste encontrado',
-    noCoverageData: 'Sem dados de cobertura',
+    // Tags & Metadata
+    executionTags: 'Execution Tags',
+    squad: 'Squad/Team',
+    executionType: 'Execution Type',
+    executionDate: 'Execution Date',
+    product: 'Product',
+    module: 'Module',
+    functionality: 'Functionality',
+    selectSquad: 'Select Squad',
+    selectType: 'Select Type',
+    selectProduct: 'Select Product',
+    selectModule: 'Select Module',
+    selectFunctionality: 'Select Functionality',
+    // History
+    executionHistory: 'Execution History',
+    viewHistory: 'View History',
+    selectDate: 'Select Date',
+    today: 'Today',
+    noHistoryData: 'No history available',
+    lastExecution: 'Last Execution',
+    // Date picker
+    dateFormat: 'DD/MM/YYYY',
+    pickDate: 'Pick Date',
+    // Execution types
+    release: 'Release',
+    regression: 'Regression',
+    smoke: 'Smoke',
+    sanity: 'Sanity',
+    exploratory: 'Exploratory',
   },
 };
 
@@ -147,7 +239,23 @@ class ReportGenerator {
     this.projectName = options.projectName || themeConfig.branding?.name || 'Test Report';
     this.theme = options.theme || 'dark';
     this.config = themeConfig;
+    this.execConfig = executionConfig;
     this.testIndex = 0;
+    this.historyManager = new HistoryManager();
+
+    // Parse tags from command line
+    this.tags = this.parseTags(options);
+  }
+
+  parseTags(options) {
+    return {
+      squad: options.squad || process.env.CYPRESS_SQUAD || this.execConfig.defaults.squad,
+      executionType: options.executionType || process.env.CYPRESS_EXEC_TYPE || this.execConfig.defaults.executionType,
+      product: options.product || process.env.CYPRESS_PRODUCT || this.execConfig.defaults.product,
+      module: options.module || process.env.CYPRESS_MODULE || this.execConfig.defaults.module,
+      functionality: options.functionality || process.env.CYPRESS_FUNCTIONALITY || this.execConfig.defaults.functionality,
+      date: options.date || process.env.CYPRESS_EXEC_DATE || new Date().toISOString(),
+    };
   }
 
   generate() {
@@ -163,7 +271,25 @@ class ReportGenerator {
     const allSuites = this.extractAllSuites(reportData.results || []);
     const allTests = this.extractAllTests(allSuites);
     const metrics = this.calculateMetrics(reportData, allTests);
-    const html = this.generateHTML(reportData, metrics, allTests, allSuites);
+
+    // Save to history
+    this.historyManager.saveExecution({
+      date: this.tags.date,
+      tags: this.tags,
+      total: metrics.totalTests,
+      passed: metrics.passed,
+      failed: metrics.failed,
+      skipped: metrics.pending,
+      passRate: parseFloat(metrics.passRate),
+      duration: metrics.duration,
+      tests: allTests,
+      suites: allSuites,
+    });
+
+    // Get history data
+    const historyData = this.historyManager.getAllExecutions();
+
+    const html = this.generateHTML(reportData, metrics, allTests, allSuites, historyData);
 
     this.ensureOutputDir();
     this.writeReport(html);
@@ -190,7 +316,6 @@ class ReportGenerator {
 
       const processSuites = (suites, parentFile) => {
         suites.forEach((suite) => {
-          // Add file info to suite
           const suiteWithFile = { ...suite, file: parentFile || file };
           allSuites.push(suiteWithFile);
         });
@@ -212,7 +337,6 @@ class ReportGenerator {
       const currentPath = suite.title ? [...parentPath, suite.title] : parentPath;
       const file = suite.file || parentFile;
 
-      // Process tests in this suite
       (suite.tests || []).forEach((test) => {
         tests.push({
           id: `test-${this.testIndex++}`,
@@ -230,7 +354,6 @@ class ReportGenerator {
         });
       });
 
-      // Process nested suites
       (suite.suites || []).forEach((nestedSuite) => {
         processSuite(nestedSuite, currentPath, file);
       });
@@ -244,9 +367,9 @@ class ReportGenerator {
     const stats = data.stats || {};
 
     const totalTests = allTests.length;
-    const passed = allTests.filter(t => t.status === 'passed').length;
-    const failed = allTests.filter(t => t.status === 'failed').length;
-    const pending = allTests.filter(t => t.status === 'pending').length;
+    const passed = allTests.filter((t) => t.status === 'passed').length;
+    const failed = allTests.filter((t) => t.status === 'failed').length;
+    const pending = allTests.filter((t) => t.status === 'pending').length;
     const duration = stats.duration || 0;
 
     const passRate = totalTests > 0 ? ((passed / totalTests) * 100).toFixed(1) : 0;
@@ -275,7 +398,6 @@ class ReportGenerator {
     const features = {};
 
     allTests.forEach((test) => {
-      // Use the first level of the suite path as the feature name
       const featureName = test.suitePath[0] || 'Unknown';
 
       if (!features[featureName]) {
@@ -316,32 +438,156 @@ class ReportGenerator {
     return `${minutes}m ${seconds}s`;
   }
 
+  formatDateBR(date) {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+
   getGoogleFontsUrl() {
     const fonts = this.config.fonts?.googleFonts || ['Inter:wght@400;500;600;700'];
-    return `https://fonts.googleapis.com/css2?${fonts.map(f => `family=${f}`).join('&')}&display=swap`;
+    return `https://fonts.googleapis.com/css2?${fonts.map((f) => `family=${f}`).join('&')}&display=swap`;
   }
 
   escapeHtml(text) {
     if (!text) return '';
-    return String(text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
   }
 
-  generateHTML(data, metrics, allTests, allSuites) {
+  getTagLabel(type, id) {
+    const lists = {
+      squad: this.execConfig.squads,
+      executionType: this.execConfig.executionTypes,
+      product: this.execConfig.products,
+      module: this.execConfig.modules,
+      functionality: this.execConfig.functionalities,
+    };
+    const list = lists[type] || [];
+    const item = list.find((i) => i.id === id);
+    return item ? item.name : id;
+  }
+
+  generateTestList(allTests) {
+    return allTests
+      .map(
+        (test) => `
+      <div class="test-item flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary-500/50 transition-all cursor-pointer" data-status="${test.status}" data-test-id="${test.id}" onclick="showTestDetail('${test.id}')">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center ${test.status === 'passed' ? 'bg-success-500/10' : test.status === 'failed' ? 'bg-danger-500/10' : 'bg-warning-500/10'}">
+          <svg class="w-5 h-5 ${test.status === 'passed' ? 'text-success-500' : test.status === 'failed' ? 'text-danger-500' : 'text-warning-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            ${test.status === 'passed' ? '<polyline points="20,6 9,17 4,12"/>' : test.status === 'failed' ? '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' : '<line x1="8" y1="12" x2="16" y2="12"/>'}
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h4 class="font-medium text-slate-900 dark:text-white truncate">${this.escapeHtml(test.title)}</h4>
+          <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${this.escapeHtml(test.suitePath.join(' > '))}</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <span class="text-sm text-slate-500 dark:text-slate-400 font-mono">${this.formatDuration(test.duration)}</span>
+          <svg class="w-5 h-5 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+        </div>
+      </div>
+    `
+      )
+      .join('');
+  }
+
+  generateFeatureCoverageCards(featureCoverage) {
+    return Object.entries(featureCoverage)
+      .map(
+        ([name, data]) => `
+      <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-6 hover-lift">
+        <div class="flex items-center justify-between mb-4">
+          <h4 class="font-semibold text-slate-900 dark:text-white">${this.escapeHtml(name)}</h4>
+          <span class="text-sm text-slate-500">${data.total} <span data-i18n="total">total</span></span>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full bg-success-500 rounded-full" style="width: ${data.total > 0 ? (data.passed / data.total) * 100 : 0}%"></div>
+            </div>
+            <span class="text-xs text-success-500 font-medium w-8">${data.passed}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full bg-danger-500 rounded-full" style="width: ${data.total > 0 ? (data.failed / data.total) * 100 : 0}%"></div>
+            </div>
+            <span class="text-xs text-danger-500 font-medium w-8">${data.failed}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="flex-1 h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div class="h-full bg-warning-500 rounded-full" style="width: ${data.total > 0 ? (data.pending / data.total) * 100 : 0}%"></div>
+            </div>
+            <span class="text-xs text-warning-500 font-medium w-8">${data.pending}</span>
+          </div>
+        </div>
+      </div>
+    `
+      )
+      .join('');
+  }
+
+  generateHistoryList(historyData) {
+    if (!historyData || historyData.length === 0) {
+      return '<div class="text-center py-8 text-slate-500" data-i18n="noHistoryData">Nenhum historico disponivel</div>';
+    }
+
+    return historyData
+      .map(
+        (exec, index) => `
+      <div class="history-item flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary-500/50 transition-all cursor-pointer ${index === 0 ? 'ring-2 ring-primary-500' : ''}" onclick="loadHistoryExecution('${exec.date}')">
+        <div class="w-12 h-12 rounded-xl ${exec.summary.passRate >= 90 ? 'bg-success-500/10' : exec.summary.passRate >= 70 ? 'bg-warning-500/10' : 'bg-danger-500/10'} flex items-center justify-center">
+          <span class="text-lg font-bold ${exec.summary.passRate >= 90 ? 'text-success-500' : exec.summary.passRate >= 70 ? 'text-warning-500' : 'text-danger-500'}">${exec.summary.passRate}%</span>
+        </div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2">
+            <span class="font-semibold text-slate-900 dark:text-white">${exec.date}</span>
+            ${index === 0 ? '<span class="px-2 py-0.5 text-xs font-bold bg-primary-500/10 text-primary-500 rounded-full" data-i18n="today">Hoje</span>' : ''}
+          </div>
+          <div class="flex items-center gap-4 mt-1 text-sm text-slate-500">
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-success-500"></span>${exec.summary.passed}</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-danger-500"></span>${exec.summary.failed}</span>
+            <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-warning-500"></span>${exec.summary.skipped}</span>
+          </div>
+        </div>
+        <div class="text-right">
+          <span class="text-sm text-slate-500">${exec.summary.total} testes</span>
+          ${exec.tags?.squad ? `<span class="block text-xs text-slate-400 mt-1">${this.getTagLabel('squad', exec.tags.squad)}</span>` : ''}
+        </div>
+        <svg class="w-5 h-5 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+      </div>
+    `
+      )
+      .join('');
+  }
+
+  ensureOutputDir() {
+    if (!fs.existsSync(this.outputDir)) {
+      fs.mkdirSync(this.outputDir, { recursive: true });
+    }
+  }
+
+  writeReport(html) {
+    const outputPath = path.join(this.outputDir, 'index.html');
+    fs.writeFileSync(outputPath, html);
+  }
+
+  generateHTML(data, metrics, allTests, allSuites, historyData) {
     const colors = this.config.colors || {};
     const testsJson = JSON.stringify(allTests).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
     const translationsJson = JSON.stringify(translations);
+    const historyJson = JSON.stringify(historyData || []);
+    const execConfigJson = JSON.stringify(this.execConfig);
+    const currentTagsJson = JSON.stringify(this.tags);
+    const currentDate = this.formatDateBR(this.tags.date);
 
     return `<!DOCTYPE html>
-<html lang="en" class="${this.theme}">
+<html lang="pt-BR" class="${this.theme}">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${this.projectName} - Test Report</title>
+  <title>${this.projectName} - Relatorio de Testes</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -377,12 +623,7 @@ class ReportGenerator {
     ::-webkit-scrollbar { width: 8px; height: 8px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-    .gradient-text {
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
+    .gradient-text { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
     .hover-lift { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
     .hover-lift:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3); }
     .progress-ring-circle { transition: stroke-dashoffset 1s ease-out; transform: rotate(-90deg); transform-origin: 50% 50%; }
@@ -390,6 +631,9 @@ class ReportGenerator {
     #resultsChart, #coverageChart { cursor: pointer; }
     .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .tag-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 9999px; font-size: 12px; font-weight: 500; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+    .dark input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.8); }
   </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 font-sans antialiased">
@@ -398,10 +642,13 @@ class ReportGenerator {
     // Store data
     window.allTests = JSON.parse('${testsJson}');
     window.translations = ${translationsJson};
-    window.currentLang = localStorage.getItem('lang') || 'en';
+    window.historyData = ${historyJson};
+    window.execConfig = ${execConfigJson};
+    window.currentTags = ${currentTagsJson};
+    window.currentLang = localStorage.getItem('lang') || 'pt-BR'; // Default PT-BR
 
     function t(key) {
-      return window.translations[window.currentLang]?.[key] || window.translations['en'][key] || key;
+      return window.translations[window.currentLang]?.[key] || window.translations['pt-BR'][key] || key;
     }
   </script>
 
@@ -419,31 +666,38 @@ class ReportGenerator {
           </div>
           <div>
             <h1 class="text-lg font-bold text-slate-900 dark:text-white">${this.projectName}</h1>
-            <span class="inline-block px-2 py-0.5 text-xs font-semibold bg-primary-500/10 text-primary-500 rounded-full" data-i18n="testReport">Test Report</span>
+            <span class="inline-block px-2 py-0.5 text-xs font-semibold bg-primary-500/10 text-primary-500 rounded-full" data-i18n="testReport">Relatorio de Testes</span>
           </div>
         </div>
       </div>
 
-      <nav class="flex-1 p-4 space-y-1">
+      <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
         <a href="#dashboard" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all group active" data-section="dashboard">
           <svg class="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-[.active]:text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
           </svg>
-          <span class="font-medium group-[.active]:text-primary-500" data-i18n="dashboard">Dashboard</span>
+          <span class="font-medium group-[.active]:text-primary-500" data-i18n="dashboard">Painel</span>
         </a>
 
         <a href="#tests" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all group" data-section="tests">
           <svg class="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-[.active]:text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
           </svg>
-          <span class="font-medium group-[.active]:text-primary-500" data-i18n="testResults">Test Results</span>
+          <span class="font-medium group-[.active]:text-primary-500" data-i18n="testResults">Resultados dos Testes</span>
         </a>
 
         <a href="#coverage" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all group" data-section="coverage">
           <svg class="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-[.active]:text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>
           </svg>
-          <span class="font-medium group-[.active]:text-primary-500" data-i18n="coverage">Coverage</span>
+          <span class="font-medium group-[.active]:text-primary-500" data-i18n="coverage">Cobertura</span>
+        </a>
+
+        <a href="#history" class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all group" data-section="history">
+          <svg class="w-5 h-5 text-slate-400 group-hover:text-primary-500 group-[.active]:text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+          </svg>
+          <span class="font-medium group-[.active]:text-primary-500" data-i18n="history">Historico</span>
         </a>
       </nav>
 
@@ -456,7 +710,7 @@ class ReportGenerator {
           <svg class="w-5 h-5 block dark:hidden text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
           </svg>
-          <span class="text-sm font-medium text-slate-600 dark:text-slate-300" data-i18n="theme">Theme</span>
+          <span class="text-sm font-medium text-slate-600 dark:text-slate-300" data-i18n="theme">Tema</span>
         </button>
 
         <!-- Language Toggle -->
@@ -464,12 +718,12 @@ class ReportGenerator {
           <svg class="w-5 h-5 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
           </svg>
-          <span class="text-sm font-medium text-slate-600 dark:text-slate-300" data-i18n="language">Language</span>
-          <span id="current-lang" class="ml-auto text-xs font-bold text-primary-500 uppercase">EN</span>
+          <span class="text-sm font-medium text-slate-600 dark:text-slate-300" data-i18n="language">Idioma</span>
+          <span id="current-lang" class="ml-auto text-xs font-bold text-primary-500 uppercase">PT</span>
         </button>
 
         <div class="flex items-center justify-between pt-2">
-          <span class="text-xs text-slate-400">v2.2.0</span>
+          <span class="text-xs text-slate-400">v2.3.0</span>
         </div>
       </div>
     </aside>
@@ -477,9 +731,61 @@ class ReportGenerator {
     <!-- Main Content -->
     <main class="flex-1 ml-72 p-8">
 
+      <!-- Tags Section (Always visible at top) -->
+      <div class="mb-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-300" data-i18n="executionTags">Tags da Execucao:</span>
+
+          <!-- Squad Tag -->
+          <span class="tag-badge bg-primary-500/10 text-primary-600 dark:text-primary-400">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            ${this.getTagLabel('squad', this.tags.squad)}
+          </span>
+
+          <!-- Execution Type Tag -->
+          <span class="tag-badge bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            ${this.getTagLabel('executionType', this.tags.executionType)}
+          </span>
+
+          <!-- Product Tag -->
+          <span class="tag-badge bg-info-500/10 text-info-600 dark:text-info-400">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+            ${this.getTagLabel('product', this.tags.product)}
+          </span>
+
+          <!-- Module Tag -->
+          <span class="tag-badge bg-warning-500/10 text-warning-600 dark:text-warning-400">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+            ${this.getTagLabel('module', this.tags.module)}
+          </span>
+
+          <!-- Functionality Tag -->
+          <span class="tag-badge bg-success-500/10 text-success-600 dark:text-success-400">
+            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            ${this.getTagLabel('functionality', this.tags.functionality)}
+          </span>
+
+          <!-- Date Selector -->
+          <div class="ml-auto flex items-center gap-2">
+            <div class="relative">
+              <input type="text" id="date-input" value="${currentDate}"
+                class="w-32 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-center font-mono"
+                placeholder="DD/MM/AAAA" maxlength="10" onclick="this.select()" onchange="onDateInputChange(this.value)">
+            </div>
+            <input type="date" id="date-picker" class="w-10 h-8 opacity-0 absolute" onchange="onDatePickerChange(this.value)">
+            <button onclick="document.getElementById('date-picker').showPicker()" class="p-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-all" title="Escolher data">
+              <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div id="breadcrumb" class="hidden mb-4">
         <nav class="flex items-center gap-2 text-sm">
-          <button onclick="navigateTo('dashboard')" class="text-primary-500 hover:text-primary-600 font-medium" data-i18n="dashboard">Dashboard</button>
+          <button onclick="navigateTo('dashboard')" class="text-primary-500 hover:text-primary-600 font-medium" data-i18n="dashboard">Painel</button>
           <span class="text-slate-400">/</span>
           <span id="breadcrumb-current" class="text-slate-600 dark:text-slate-300"></span>
         </nav>
@@ -487,8 +793,8 @@ class ReportGenerator {
 
       <header class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-6 border-b border-slate-200 dark:border-slate-700">
         <div>
-          <h2 id="page-title" class="text-3xl font-bold gradient-text" data-i18n="dashboard">Dashboard</h2>
-          <p id="page-subtitle" class="text-slate-500 dark:text-slate-400 mt-1" data-i18n="executionSummary">Execution Summary & Analytics</p>
+          <h2 id="page-title" class="text-3xl font-bold gradient-text" data-i18n="dashboard">Painel</h2>
+          <p id="page-subtitle" class="text-slate-500 dark:text-slate-400 mt-1" data-i18n="executionSummary">Resumo da Execucao e Analises</p>
         </div>
         <div class="flex items-center gap-6">
           <div class="flex items-center gap-6 text-sm">
@@ -502,14 +808,14 @@ class ReportGenerator {
               <svg class="w-4 h-4 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
               </svg>
-              <span>${new Date(metrics.startTime).toLocaleDateString('pt-BR')} ${new Date(metrics.startTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>${currentDate} ${new Date(metrics.startTime).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
           </div>
           <button onclick="exportReport()" class="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition-all hover:shadow-lg">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>
-            <span data-i18n="export">Export</span>
+            <span data-i18n="export">Exportar</span>
           </button>
         </div>
       </header>
@@ -530,7 +836,7 @@ class ReportGenerator {
               </div>
               <div class="flex-1">
                 <span class="block text-3xl font-bold text-slate-900 dark:text-white">${metrics.totalTests}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="totalTests">Total Tests</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="totalTests">Total de Testes</span>
               </div>
               <svg class="w-5 h-5 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
             </div>
@@ -546,7 +852,7 @@ class ReportGenerator {
               </div>
               <div class="flex-1">
                 <span class="block text-3xl font-bold text-slate-900 dark:text-white">${metrics.passed}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="passed">Passed</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="passed">Passou</span>
               </div>
               <div class="flex flex-col items-end">
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-success-500/10 text-success-500">${metrics.passRate}%</span>
@@ -565,7 +871,7 @@ class ReportGenerator {
               </div>
               <div class="flex-1">
                 <span class="block text-3xl font-bold text-slate-900 dark:text-white">${metrics.failed}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="failed">Failed</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="failed">Falhou</span>
               </div>
               <div class="flex flex-col items-end">
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${metrics.failed > 0 ? 'bg-danger-500/10 text-danger-500' : 'bg-success-500/10 text-success-500'}">${metrics.failRate}%</span>
@@ -584,7 +890,7 @@ class ReportGenerator {
               </div>
               <div class="flex-1">
                 <span class="block text-3xl font-bold text-slate-900 dark:text-white">${metrics.pending}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="skipped">Skipped</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="skipped">Ignorado</span>
               </div>
               <div class="flex flex-col items-end">
                 <span class="px-2 py-0.5 rounded-full text-xs font-semibold bg-warning-500/10 text-warning-500">${metrics.totalTests > 0 ? ((metrics.pending / metrics.totalTests) * 100).toFixed(1) : 0}%</span>
@@ -599,8 +905,8 @@ class ReportGenerator {
 
           <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-fade-in" style="animation-delay: 0.3s">
             <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-slate-900 dark:text-white" data-i18n="testResultsDistribution">Test Results Distribution</h3>
-              <span class="text-xs text-slate-400" data-i18n="clickForDetails">Click segments for details</span>
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-white" data-i18n="testResultsDistribution">Distribuicao dos Resultados</h3>
+              <span class="text-xs text-slate-400" data-i18n="clickForDetails">Clique para ver detalhes</span>
             </div>
             <div class="p-6">
               <div class="chart-container"><canvas id="resultsChart"></canvas></div>
@@ -609,8 +915,8 @@ class ReportGenerator {
 
           <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden animate-fade-in" style="animation-delay: 0.4s">
             <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
-              <h3 class="text-lg font-semibold text-slate-900 dark:text-white" data-i18n="testTypeDistribution">Test Type Distribution</h3>
-              <span class="text-xs text-slate-400" data-i18n="clickBarsForDetails">Click bars for details</span>
+              <h3 class="text-lg font-semibold text-slate-900 dark:text-white" data-i18n="testTypeDistribution">Distribuicao por Tipo de Teste</h3>
+              <span class="text-xs text-slate-400" data-i18n="clickBarsForDetails">Clique nas barras para detalhes</span>
             </div>
             <div class="p-6">
               <div class="chart-container"><canvas id="coverageChart"></canvas></div>
@@ -630,46 +936,46 @@ class ReportGenerator {
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center">
                 <span class="text-4xl font-bold gradient-text">${metrics.passRate}%</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="passRate">Pass Rate</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="passRate">Taxa de Sucesso</span>
               </div>
             </div>
             <div class="w-full space-y-3">
               <button onclick="showTestsByStatus('passed')" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
                 <span class="w-3 h-3 rounded-full bg-success-500"></span>
-                <span class="text-sm text-slate-600 dark:text-slate-300 flex-1 text-left"><span data-i18n="passed">Passed</span>: ${metrics.passed}</span>
+                <span class="text-sm text-slate-600 dark:text-slate-300 flex-1 text-left"><span data-i18n="passed">Passou</span>: ${metrics.passed}</span>
                 <svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
               </button>
               <button onclick="showTestsByStatus('failed')" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
                 <span class="w-3 h-3 rounded-full bg-danger-500"></span>
-                <span class="text-sm text-slate-600 dark:text-slate-300 flex-1 text-left"><span data-i18n="failed">Failed</span>: ${metrics.failed}</span>
+                <span class="text-sm text-slate-600 dark:text-slate-300 flex-1 text-left"><span data-i18n="failed">Falhou</span>: ${metrics.failed}</span>
                 <svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
               </button>
               <button onclick="showTestsByStatus('pending')" class="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all">
                 <span class="w-3 h-3 rounded-full bg-warning-500"></span>
-                <span class="text-sm text-slate-600 dark:text-slate-300 flex-1 text-left"><span data-i18n="skipped">Skipped</span>: ${metrics.pending}</span>
+                <span class="text-sm text-slate-600 dark:text-slate-300 flex-1 text-left"><span data-i18n="skipped">Ignorado</span>: ${metrics.pending}</span>
                 <svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
               </button>
             </div>
           </div>
 
           <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 animate-fade-in" style="animation-delay: 0.5s">
-            <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-6" data-i18n="executionMetrics">Execution Metrics</h3>
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-6" data-i18n="executionMetrics">Metricas de Execucao</h3>
             <div class="grid grid-cols-2 gap-6">
               <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-5 text-center hover-lift">
                 <span class="block text-2xl font-bold text-primary-500 mb-1">${this.formatDuration(metrics.duration)}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="totalDuration">Total Duration</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="totalDuration">Duracao Total</span>
               </div>
               <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-5 text-center hover-lift">
                 <span class="block text-2xl font-bold text-primary-500 mb-1">${metrics.totalTests > 0 ? this.formatDuration(metrics.duration / metrics.totalTests) : '0ms'}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="avgPerTest">Avg. per Test</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="avgPerTest">Media por Teste</span>
               </div>
               <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-5 text-center hover-lift">
                 <span class="block text-2xl font-bold text-primary-500 mb-1">${Object.keys(metrics.featureCoverage).length}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="testSuites">Test Suites</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="testSuites">Suites de Teste</span>
               </div>
               <div class="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-5 text-center hover-lift">
-                <span class="block text-2xl font-bold ${metrics.passRate >= 90 ? 'text-success-500' : metrics.passRate >= 70 ? 'text-warning-500' : 'text-danger-500'} mb-1" data-i18n="${metrics.passRate >= 90 ? 'excellent' : metrics.passRate >= 70 ? 'good' : 'needsWork'}">${metrics.passRate >= 90 ? 'Excellent' : metrics.passRate >= 70 ? 'Good' : 'Needs Work'}</span>
-                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="healthStatus">Health Status</span>
+                <span class="block text-2xl font-bold ${metrics.passRate >= 90 ? 'text-success-500' : metrics.passRate >= 70 ? 'text-warning-500' : 'text-danger-500'} mb-1" data-i18n="${metrics.passRate >= 90 ? 'excellent' : metrics.passRate >= 70 ? 'good' : 'needsWork'}">${metrics.passRate >= 90 ? 'Excelente' : metrics.passRate >= 70 ? 'Bom' : 'Precisa Melhorar'}</span>
+                <span class="text-sm text-slate-500 dark:text-slate-400" data-i18n="healthStatus">Status de Saude</span>
               </div>
             </div>
           </div>
@@ -680,14 +986,14 @@ class ReportGenerator {
       <section id="tests" class="section hidden space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 class="text-2xl font-bold text-slate-900 dark:text-white" data-i18n="testResults">Test Results</h2>
-            <p id="tests-subtitle" class="text-sm text-slate-500 dark:text-slate-400 mt-1" data-i18n="showingAllTests">Showing all tests</p>
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white" data-i18n="testResults">Resultados dos Testes</h2>
+            <p id="tests-subtitle" class="text-sm text-slate-500 dark:text-slate-400 mt-1" data-i18n="showingAllTests">Mostrando todos os testes</p>
           </div>
           <div class="flex gap-2">
-            <button class="filter-btn active px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white transition-all" data-filter="all"><span data-i18n="all">All</span> (${metrics.totalTests})</button>
-            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all" data-filter="passed"><span data-i18n="passed">Passed</span> (${metrics.passed})</button>
-            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all" data-filter="failed"><span data-i18n="failed">Failed</span> (${metrics.failed})</button>
-            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all" data-filter="pending"><span data-i18n="skipped">Skipped</span> (${metrics.pending})</button>
+            <button class="filter-btn active px-4 py-2 rounded-lg text-sm font-medium bg-primary-500 text-white transition-all" data-filter="all"><span data-i18n="all">Todos</span> (${metrics.totalTests})</button>
+            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all" data-filter="passed"><span data-i18n="passed">Passou</span> (${metrics.passed})</button>
+            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all" data-filter="failed"><span data-i18n="failed">Falhou</span> (${metrics.failed})</button>
+            <button class="filter-btn px-4 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-all" data-filter="pending"><span data-i18n="skipped">Ignorado</span> (${metrics.pending})</button>
           </div>
         </div>
 
@@ -698,9 +1004,20 @@ class ReportGenerator {
 
       <!-- Coverage Section -->
       <section id="coverage" class="section hidden space-y-6">
-        <h2 class="text-2xl font-bold text-slate-900 dark:text-white" data-i18n="featureCoverage">Feature Coverage</h2>
+        <h2 class="text-2xl font-bold text-slate-900 dark:text-white" data-i18n="featureCoverage">Cobertura por Funcionalidade</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           ${this.generateFeatureCoverageCards(metrics.featureCoverage)}
+        </div>
+      </section>
+
+      <!-- History Section -->
+      <section id="history" class="section hidden space-y-6">
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-bold text-slate-900 dark:text-white" data-i18n="executionHistory">Historico de Execucoes</h2>
+          <span class="text-sm text-slate-500">${historyData.length} <span data-i18n="total">execucoes</span></span>
+        </div>
+        <div id="history-list" class="space-y-3">
+          ${this.generateHistoryList(historyData)}
         </div>
       </section>
 
@@ -766,9 +1083,9 @@ class ReportGenerator {
 
     // Language Toggle
     function toggleLanguage() {
-      window.currentLang = window.currentLang === 'en' ? 'pt-BR' : 'en';
+      window.currentLang = window.currentLang === 'pt-BR' ? 'en' : 'pt-BR';
       localStorage.setItem('lang', window.currentLang);
-      document.getElementById('current-lang').textContent = window.currentLang === 'en' ? 'EN' : 'PT';
+      document.getElementById('current-lang').textContent = window.currentLang === 'pt-BR' ? 'PT' : 'EN';
       updateTranslations();
       updateCharts();
     }
@@ -791,11 +1108,11 @@ class ReportGenerator {
       coverageChart.update();
     }
 
-    // Load saved preferences
+    // Load saved preferences - PT-BR is default
     if (localStorage.getItem('theme') === 'light') document.documentElement.classList.remove('dark');
     else if (localStorage.getItem('theme') === 'dark' || window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.classList.add('dark');
-    window.currentLang = localStorage.getItem('lang') || 'en';
-    document.getElementById('current-lang').textContent = window.currentLang === 'en' ? 'EN' : 'PT';
+    window.currentLang = localStorage.getItem('lang') || 'pt-BR';
+    document.getElementById('current-lang').textContent = window.currentLang === 'pt-BR' ? 'PT' : 'EN';
     updateTranslations();
 
     // Navigation
@@ -831,7 +1148,7 @@ class ReportGenerator {
         item.style.display = (status === 'all' || item.dataset.status === status) ? 'flex' : 'none';
       });
       const count = status === 'all' ? window.allTests.length : window.allTests.filter(t => t.status === status).length;
-      document.getElementById('tests-subtitle').textContent = status === 'all' ? t('showingAllTests') : t('showingTests').replace('{status}', t(status)) + ' (' + count + ')';
+      document.getElementById('tests-subtitle').textContent = status === 'all' ? t('showingAllTests') : t('showingTests').replace('{status}', t(status === 'pending' ? 'skipped' : status)) + ' (' + count + ')';
     }
 
     // Show tests by type
@@ -847,13 +1164,41 @@ class ReportGenerator {
       document.querySelectorAll('.test-item').forEach(item => {
         item.style.display = matchingTests.some(t => t.id === item.dataset.testId) ? 'flex' : 'none';
       });
-      document.getElementById('tests-subtitle').textContent = t(type + 'Tests') + ' (' + matchingTests.length + ' tests)';
+      document.getElementById('tests-subtitle').textContent = t(type + 'Tests') + ' (' + matchingTests.length + ' testes)';
     }
 
     // Filter buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', () => showTestsByStatus(btn.dataset.filter));
     });
+
+    // Date handling
+    function onDateInputChange(value) {
+      // Validate DD/MM/YYYY format
+      const regex = /^(\\d{2})\\/(\\d{2})\\/(\\d{4})$/;
+      if (regex.test(value)) {
+        loadHistoryExecution(value);
+      }
+    }
+
+    function onDatePickerChange(value) {
+      // Convert YYYY-MM-DD to DD/MM/YYYY
+      const [year, month, day] = value.split('-');
+      const formatted = day + '/' + month + '/' + year;
+      document.getElementById('date-input').value = formatted;
+      loadHistoryExecution(formatted);
+    }
+
+    function loadHistoryExecution(dateStr) {
+      // Find execution in history
+      const exec = window.historyData.find(e => e.date === dateStr);
+      if (exec) {
+        // Reload page with selected date's data (in real implementation, this would fetch from server/file)
+        alert(t('selectDate') + ': ' + dateStr + '\\n' + t('passRate') + ': ' + exec.summary.passRate + '%\\n' + t('totalTests') + ': ' + exec.summary.total);
+      } else {
+        alert(t('noHistoryData') + ' ' + dateStr);
+      }
+    }
 
     // Show test detail
     function showTestDetail(testId) {
@@ -875,7 +1220,7 @@ class ReportGenerator {
 
       content += '<div class="mb-6"><h4 class="text-sm font-semibold text-slate-900 dark:text-white mb-2">' + t('fullTitle') + '</h4><p class="text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-700/50 p-3 rounded-lg font-mono text-sm">' + escapeHtml(test.fullTitle) + '</p></div>';
 
-      content += '<div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4"><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-2xl font-bold text-primary-500">' + formatDuration(test.duration) + '</span><span class="text-xs text-slate-500">' + t('duration') + '</span></div><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-2xl font-bold text-primary-500">' + (test.speed || 'N/A') + '</span><span class="text-xs text-slate-500">' + t('speed') + '</span></div><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-2xl font-bold ' + config.text + '">' + config.label + '</span><span class="text-xs text-slate-500">' + t('status') + '</span></div><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-lg font-bold text-primary-500 truncate" title="' + escapeHtml(test.file) + '">' + (test.file ? test.file.split(/[\\\\/]/).pop() : 'N/A') + '</span><span class="text-xs text-slate-500">' + t('file') + '</span></div></div>';
+      content += '<div class="mb-6 grid grid-cols-2 md:grid-cols-4 gap-4"><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-2xl font-bold text-primary-500">' + formatDuration(test.duration) + '</span><span class="text-xs text-slate-500">' + t('duration') + '</span></div><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-2xl font-bold text-primary-500">' + (test.speed || 'N/A') + '</span><span class="text-xs text-slate-500">' + t('speed') + '</span></div><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-2xl font-bold ' + config.text + '">' + config.label + '</span><span class="text-xs text-slate-500">' + t('status') + '</span></div><div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-4 text-center"><span class="block text-lg font-bold text-primary-500 truncate" title="' + escapeHtml(test.file) + '">' + (test.file ? test.file.split(/[\\\\\\\\/]/).pop() : 'N/A') + '</span><span class="text-xs text-slate-500">' + t('file') + '</span></div></div>';
 
       if (test.status === 'failed' && test.err) {
         content += '<div class="mb-6"><h4 class="text-sm font-semibold text-danger-500 mb-2 flex items-center gap-2"><svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' + t('errorMessage') + '</h4><div class="bg-danger-500/5 border border-danger-500/20 rounded-lg p-4"><p class="text-danger-600 dark:text-danger-400 font-mono text-sm whitespace-pre-wrap">' + escapeHtml(test.err.message || 'Unknown error') + '</p></div></div>';
@@ -900,111 +1245,80 @@ class ReportGenerator {
     function formatDuration(ms) { if (!ms) return '0ms'; if (ms < 1000) return ms + 'ms'; if (ms < 60000) return (ms / 1000).toFixed(2) + 's'; return Math.floor(ms / 60000) + 'm ' + ((ms % 60000) / 1000).toFixed(0) + 's'; }
 
     function exportReport() {
-      const data = { project: '${this.projectName}', timestamp: new Date().toISOString(), metrics: ${JSON.stringify(metrics)}, tests: window.allTests };
+      const data = {
+        generatedAt: new Date().toISOString(),
+        tags: window.currentTags,
+        summary: {
+          total: ${metrics.totalTests},
+          passed: ${metrics.passed},
+          failed: ${metrics.failed},
+          skipped: ${metrics.pending},
+          passRate: ${metrics.passRate},
+          duration: ${metrics.duration}
+        },
+        tests: window.allTests
+      };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'test-report-' + new Date().toISOString().split('T')[0] + '.json'; a.click();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'test-report-' + new Date().toISOString().split('T')[0] + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     }
   </script>
+
 </body>
 </html>`;
   }
-
-  generateTestList(allTests) {
-    if (allTests.length === 0) {
-      return '<p class="text-slate-500 dark:text-slate-400 text-center py-8" data-i18n="noTestsFound">No tests found</p>';
-    }
-
-    const statusConfig = {
-      passed: { bg: 'bg-success-500/10', text: 'text-success-500', icon: '<polyline points="20,6 9,17 4,12"/>' },
-      failed: { bg: 'bg-danger-500/10', text: 'text-danger-500', icon: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' },
-      pending: { bg: 'bg-warning-500/10', text: 'text-warning-500', icon: '<circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/>' },
-    };
-
-    return allTests.map((test) => {
-      const config = statusConfig[test.status];
-      const hasError = test.status === 'failed' && test.err;
-
-      return `
-        <div class="test-item flex items-center gap-3 p-4 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-primary-500/50 transition-all cursor-pointer group"
-             data-test-id="${test.id}"
-             data-status="${test.status}"
-             onclick="showTestDetail('${test.id}')">
-          <div class="w-10 h-10 rounded-full ${config.bg} flex items-center justify-center flex-shrink-0">
-            <svg class="w-5 h-5 ${config.text}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${config.icon}</svg>
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 mb-1">
-              <span class="text-xs text-slate-400 font-mono">${this.escapeHtml(test.suitePath.join(' > '))}</span>
-            </div>
-            <span class="block text-sm font-medium text-slate-900 dark:text-white">${this.escapeHtml(test.title)}</span>
-            ${hasError ? `<span class="block text-xs text-danger-500 font-mono mt-1 truncate">${this.escapeHtml((test.err?.message || '').substring(0, 100))}${(test.err?.message || '').length > 100 ? '...' : ''}</span>` : ''}
-          </div>
-          <div class="flex items-center gap-3 flex-shrink-0">
-            <span class="text-xs font-mono text-slate-400">${this.formatDuration(test.duration)}</span>
-            <svg class="w-4 h-4 text-slate-300 group-hover:text-primary-500 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  generateFeatureCoverageCards(coverage) {
-    const entries = Object.entries(coverage);
-    if (entries.length === 0) {
-      return '<p class="text-slate-500 dark:text-slate-400 text-center py-8 col-span-full" data-i18n="noCoverageData">No coverage data</p>';
-    }
-
-    return entries.map(([feature, stats]) => {
-      const percentage = stats.total > 0 ? ((stats.passed / stats.total) * 100).toFixed(0) : 0;
-      const status = percentage >= 90 ? 'excellent' : percentage >= 70 ? 'good' : 'warning';
-      const config = {
-        excellent: { gradient: 'from-success-500 to-emerald-400', badge: 'bg-success-500/10 text-success-500' },
-        good: { gradient: 'from-info-500 to-blue-400', badge: 'bg-info-500/10 text-info-500' },
-        warning: { gradient: 'from-warning-500 to-amber-400', badge: 'bg-warning-500/10 text-warning-500' },
-      }[status];
-
-      return `
-        <div class="hover-lift bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h4 class="font-semibold text-slate-900 dark:text-white truncate pr-2">${this.escapeHtml(feature)}</h4>
-            <span class="px-3 py-1 rounded-full text-sm font-bold ${config.badge} flex-shrink-0">${percentage}%</span>
-          </div>
-          <div class="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden mb-4">
-            <div class="h-full bg-gradient-to-r ${config.gradient} rounded-full transition-all duration-1000" style="width: ${percentage}%"></div>
-          </div>
-          <div class="flex justify-between text-xs">
-            <span class="text-success-500 font-medium">${stats.passed} <span data-i18n="passed">passed</span></span>
-            <span class="text-danger-500 font-medium">${stats.failed} <span data-i18n="failed">failed</span></span>
-            <span class="text-warning-500 font-medium">${stats.pending} <span data-i18n="skipped">skipped</span></span>
-            <span class="text-slate-400">${stats.total} <span data-i18n="total">total</span></span>
-          </div>
-        </div>
-      `;
-    }).join('');
-  }
-
-  ensureOutputDir() {
-    if (!fs.existsSync(this.outputDir)) {
-      fs.mkdirSync(this.outputDir, { recursive: true });
-    }
-  }
-
-  writeReport(html) {
-    fs.writeFileSync(path.join(this.outputDir, 'index.html'), html);
-  }
 }
 
-// CLI
-const args = process.argv.slice(2);
-const options = {};
-args.forEach((arg, i) => {
-  if (arg === '--input' && args[i + 1]) options.inputFile = args[i + 1];
-  if (arg === '--output' && args[i + 1]) options.outputDir = args[i + 1];
-  if (arg === '--name' && args[i + 1]) options.projectName = args[i + 1];
-  if (arg === '--theme' && args[i + 1]) options.theme = args[i + 1];
-});
+// Parse command line arguments
+function parseArgs() {
+  const args = process.argv.slice(2);
+  const options = {};
 
+  for (let i = 0; i < args.length; i++) {
+    switch (args[i]) {
+      case '--input':
+        options.inputFile = args[++i];
+        break;
+      case '--output':
+        options.outputDir = args[++i];
+        break;
+      case '--name':
+        options.projectName = args[++i];
+        break;
+      case '--theme':
+        options.theme = args[++i];
+        break;
+      case '--squad':
+        options.squad = args[++i];
+        break;
+      case '--exec-type':
+        options.executionType = args[++i];
+        break;
+      case '--product':
+        options.product = args[++i];
+        break;
+      case '--module':
+        options.module = args[++i];
+        break;
+      case '--functionality':
+        options.functionality = args[++i];
+        break;
+      case '--date':
+        options.date = args[++i];
+        break;
+    }
+  }
+
+  return options;
+}
+
+// Main execution
+const options = parseArgs();
 const generator = new ReportGenerator(options);
 generator.generate();
-
-module.exports = ReportGenerator;
