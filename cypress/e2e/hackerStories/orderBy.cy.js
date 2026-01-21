@@ -1,6 +1,15 @@
 import data from '../../resources/data.config';
 
-describe('Order by', { env: { snapshotOnly: true } }, () => {
+describe('Order by', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-frontend',
+    executionType: 'regression',
+    product: 'hacker-stories',
+    module: 'stories',
+    functionality: 'e2e',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       term: data.initialTerm,

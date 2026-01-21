@@ -1,7 +1,16 @@
 import data from '../../resources/data.config';
 import { SELECTORS } from '../../support/selectors';
 
-describe('Errors', { env: { snapshotOnly: true } }, () => {
+describe('Errors', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-core',
+    executionType: 'regression',
+    product: 'hacker-stories',
+    module: 'error-handling',
+    functionality: 'e2e',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       term: data.initialTerm,

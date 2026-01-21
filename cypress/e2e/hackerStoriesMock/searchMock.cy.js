@@ -1,7 +1,16 @@
 import data from '../../resources/data.config';
 import { SELECTORS } from '../../support/selectors';
 
-describe('Search (Mock)', { env: { snapshotOnly: true } }, () => {
+describe('Search (Mock)', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-api',
+    executionType: 'smoke',
+    product: 'hacker-stories',
+    module: 'search',
+    functionality: 'integration',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       term: data.initialTerm,

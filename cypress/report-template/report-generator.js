@@ -1193,11 +1193,210 @@ class ReportGenerator {
       // Find execution in history
       const exec = window.historyData.find(e => e.date === dateStr);
       if (exec) {
-        // Reload page with selected date's data (in real implementation, this would fetch from server/file)
-        alert(t('selectDate') + ': ' + dateStr + '\\n' + t('passRate') + ': ' + exec.summary.passRate + '%\\n' + t('totalTests') + ': ' + exec.summary.total);
+        showHistoryModal(exec);
       } else {
         alert(t('noHistoryData') + ' ' + dateStr);
       }
+    }
+
+    // History Modal with full report
+    function showHistoryModal(exec) {
+      const passRate = exec.summary.passRate || 0;
+      const healthColor = passRate >= 90 ? 'success' : passRate >= 70 ? 'warning' : 'danger';
+      const healthText = passRate >= 90 ? t('excellent') : passRate >= 70 ? t('good') : t('needsWork');
+
+      // Build tags HTML
+      let tagsHtml = '';
+      if (exec.tags) {
+        const tagConfig = [
+          { key: 'squad', color: 'primary', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>' },
+          { key: 'executionType', color: 'secondary', icon: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>' },
+          { key: 'product', color: 'info', icon: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>' },
+          { key: 'module', color: 'warning', icon: '<path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>' },
+          { key: 'functionality', color: 'success', icon: '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>' }
+        ];
+        tagConfig.forEach(tag => {
+          if (exec.tags[tag.key]) {
+            tagsHtml += '<span class="tag-badge bg-' + tag.color + '-500/10 text-' + tag.color + '-600 dark:text-' + tag.color + '-400"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + tag.icon + '</svg>' + exec.tags[tag.key] + '</span>';
+          }
+        });
+      }
+
+      // Header HTML
+      document.getElementById('modal-header').innerHTML = '<div class="flex items-center gap-4 flex-1"><div class="w-14 h-14 rounded-xl bg-' + healthColor + '-500/10 flex items-center justify-center"><span class="text-xl font-bold text-' + healthColor + '-500">' + passRate + '%</span></div><div class="flex-1"><h3 class="text-xl font-bold text-slate-900 dark:text-white">' + t('executionHistory') + ' - ' + exec.date + '</h3><div class="flex flex-wrap items-center gap-2 mt-2">' + tagsHtml + '</div></div></div><button onclick="closeModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"><svg class="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+
+      // Content HTML - Stats Cards
+      let content = '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">';
+      content += '<div class="bg-info-500/10 rounded-xl p-4 text-center"><span class="block text-3xl font-bold text-info-500">' + exec.summary.total + '</span><span class="text-sm text-slate-500">' + t('totalTests') + '</span></div>';
+      content += '<div class="bg-success-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-success-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'passed\\')"><span class="block text-3xl font-bold text-success-500">' + exec.summary.passed + '</span><span class="text-sm text-slate-500">' + t('passed') + '</span></div>';
+      content += '<div class="bg-danger-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-danger-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'failed\\')"><span class="block text-3xl font-bold text-danger-500">' + exec.summary.failed + '</span><span class="text-sm text-slate-500">' + t('failed') + '</span></div>';
+      content += '<div class="bg-warning-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-warning-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'pending\\')"><span class="block text-3xl font-bold text-warning-500">' + exec.summary.skipped + '</span><span class="text-sm text-slate-500">' + t('skipped') + '</span></div>';
+      content += '</div>';
+
+      // Pass Rate Ring
+      const strokeOffset = 339.292 - (339.292 * passRate) / 100;
+      content += '<div class="flex items-center gap-8 mb-6 p-6 bg-slate-50 dark:bg-slate-700/30 rounded-xl">';
+      content += '<div class="relative w-32 h-32"><svg class="w-full h-full" viewBox="0 0 120 120"><circle cx="60" cy="60" r="54" fill="none" stroke="currentColor" stroke-width="8" class="text-slate-200 dark:text-slate-700"/><circle cx="60" cy="60" r="54" fill="none" stroke="' + (passRate >= 90 ? '#10b981' : passRate >= 70 ? '#f59e0b' : '#ef4444') + '" stroke-width="8" stroke-linecap="round" style="stroke-dasharray: 339.292; stroke-dashoffset: ' + strokeOffset + '; transform: rotate(-90deg); transform-origin: 50% 50%;"/></svg><div class="absolute inset-0 flex flex-col items-center justify-center"><span class="text-2xl font-bold text-' + healthColor + '-500">' + passRate + '%</span><span class="text-xs text-slate-500">' + t('passRate') + '</span></div></div>';
+      content += '<div class="flex-1 grid grid-cols-2 gap-4">';
+      content += '<div><span class="block text-sm text-slate-500">' + t('totalDuration') + '</span><span class="text-xl font-bold text-primary-500">' + formatDuration(exec.summary.duration) + '</span></div>';
+      content += '<div><span class="block text-sm text-slate-500">' + t('healthStatus') + '</span><span class="text-xl font-bold text-' + healthColor + '-500">' + healthText + '</span></div>';
+      content += '<div><span class="block text-sm text-slate-500">' + t('avgPerTest') + '</span><span class="text-xl font-bold text-primary-500">' + formatDuration(exec.summary.total > 0 ? exec.summary.duration / exec.summary.total : 0) + '</span></div>';
+      content += '<div><span class="block text-sm text-slate-500">' + t('executionDate') + '</span><span class="text-xl font-bold text-slate-700 dark:text-slate-300">' + exec.date + '</span></div>';
+      content += '</div></div>';
+
+      // Filter buttons
+      content += '<div class="flex items-center justify-between mb-4">';
+      content += '<h4 class="text-lg font-semibold text-slate-900 dark:text-white">' + t('testResults') + '</h4>';
+      content += '<div class="flex gap-2">';
+      content += '<button class="history-filter-btn active px-3 py-1.5 rounded-lg text-xs font-medium bg-primary-500 text-white" data-filter="all" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'all\\')">' + t('all') + '</button>';
+      content += '<button class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300" data-filter="passed" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'passed\\')">' + t('passed') + '</button>';
+      content += '<button class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300" data-filter="failed" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'failed\\')">' + t('failed') + '</button>';
+      content += '<button class="history-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300" data-filter="pending" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'pending\\')">' + t('skipped') + '</button>';
+      content += '</div></div>';
+
+      // Test list - we need to fetch from history file
+      content += '<div id="history-tests-list" class="space-y-2 max-h-96 overflow-y-auto">';
+      content += '<div class="text-center py-4 text-slate-500">' + t('noTestsFound') + '</div>';
+      content += '</div>';
+
+      document.getElementById('modal-content').innerHTML = content;
+      document.getElementById('test-modal').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+
+      // Load tests from history (fetch the JSON file)
+      loadHistoryTests(exec.dateKey || exec.date.split('/').reverse().join('-'));
+    }
+
+    // Load tests from history file
+    async function loadHistoryTests(dateKey) {
+      try {
+        const response = await fetch('../../history/' + dateKey + '.json');
+        if (response.ok) {
+          const data = await response.json();
+          window.currentHistoryTests = data.tests || [];
+          renderHistoryTests(window.currentHistoryTests, 'all');
+        }
+      } catch (e) {
+        // If fetch fails, use embedded data if available
+        console.log('Could not load history file, using embedded data');
+      }
+    }
+
+    // Render history tests
+    function renderHistoryTests(tests, filter) {
+      const filteredTests = filter === 'all' ? tests : tests.filter(t => t.status === filter);
+      const listEl = document.getElementById('history-tests-list');
+
+      if (filteredTests.length === 0) {
+        listEl.innerHTML = '<div class="text-center py-4 text-slate-500">' + t('noTestsFound') + '</div>';
+        return;
+      }
+
+      let html = '';
+      filteredTests.forEach(test => {
+        const statusConfig = {
+          passed: { bg: 'bg-success-500/10', text: 'text-success-500', icon: '<polyline points="20,6 9,17 4,12"/>' },
+          failed: { bg: 'bg-danger-500/10', text: 'text-danger-500', icon: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' },
+          pending: { bg: 'bg-warning-500/10', text: 'text-warning-500', icon: '<line x1="8" y1="12" x2="16" y2="12"/>' }
+        };
+        const config = statusConfig[test.status] || statusConfig.pending;
+
+        html += '<div class="history-test-item flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-500/50 cursor-pointer" data-status="' + test.status + '" onclick="showHistoryTestDetail(' + JSON.stringify(test).replace(/"/g, '&quot;') + ')">';
+        html += '<div class="w-8 h-8 rounded-lg flex items-center justify-center ' + config.bg + '"><svg class="w-4 h-4 ' + config.text + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + config.icon + '</svg></div>';
+        html += '<div class="flex-1 min-w-0"><h5 class="font-medium text-slate-900 dark:text-white text-sm truncate">' + escapeHtml(test.title) + '</h5><p class="text-xs text-slate-500 truncate">' + escapeHtml((test.suitePath || []).join(' > ')) + '</p></div>';
+        html += '<span class="text-xs text-slate-400 font-mono">' + formatDuration(test.duration) + '</span>';
+        html += '<svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>';
+        html += '</div>';
+      });
+
+      listEl.innerHTML = html;
+    }
+
+    // Filter history tests
+    function filterHistoryTests(dateStr, filter) {
+      // Update buttons
+      document.querySelectorAll('.history-filter-btn').forEach(btn => {
+        const isActive = btn.dataset.filter === filter;
+        btn.classList.toggle('active', isActive);
+        btn.classList.toggle('bg-primary-500', isActive);
+        btn.classList.toggle('text-white', isActive);
+        btn.classList.toggle('bg-slate-100', !isActive);
+        btn.classList.toggle('dark:bg-slate-700', !isActive);
+        btn.classList.toggle('text-slate-600', !isActive);
+        btn.classList.toggle('dark:text-slate-300', !isActive);
+      });
+
+      if (window.currentHistoryTests) {
+        renderHistoryTests(window.currentHistoryTests, filter);
+      }
+    }
+
+    // Show history test detail (nested modal)
+    function showHistoryTestDetail(test) {
+      const statusConfig = {
+        passed: { bg: 'bg-success-500', text: 'text-success-500', label: t('passed').toUpperCase(), icon: '<polyline points="20,6 9,17 4,12"/>' },
+        failed: { bg: 'bg-danger-500', text: 'text-danger-500', label: t('failed').toUpperCase(), icon: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>' },
+        pending: { bg: 'bg-warning-500', text: 'text-warning-500', label: t('skipped').toUpperCase(), icon: '<line x1="8" y1="12" x2="16" y2="12"/>' }
+      };
+      const config = statusConfig[test.status] || statusConfig.pending;
+
+      let detailHtml = '<div class="fixed inset-0 z-[110] flex items-center justify-center p-4" id="history-test-detail-modal">';
+      detailHtml += '<div class="absolute inset-0 bg-black/30" onclick="closeHistoryTestDetail()"></div>';
+      detailHtml += '<div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-auto">';
+
+      // Header
+      detailHtml += '<div class="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 flex items-center gap-3">';
+      detailHtml += '<div class="w-10 h-10 rounded-lg ' + config.bg + '/10 flex items-center justify-center"><svg class="w-5 h-5 ' + config.text + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + config.icon + '</svg></div>';
+      detailHtml += '<div class="flex-1"><h4 class="font-bold text-slate-900 dark:text-white">' + escapeHtml(test.title) + '</h4><span class="text-xs ' + config.text + ' font-semibold">' + config.label + '</span></div>';
+      detailHtml += '<button onclick="closeHistoryTestDetail()" class="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded"><svg class="w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+      detailHtml += '</div>';
+
+      // Content
+      detailHtml += '<div class="p-4 space-y-4">';
+
+      // Path
+      detailHtml += '<div><span class="text-xs font-semibold text-slate-500 uppercase">' + t('testPath') + '</span><div class="flex flex-wrap gap-1 mt-1">';
+      (test.suitePath || []).forEach((p, i) => {
+        detailHtml += '<span class="px-2 py-0.5 bg-slate-100 dark:bg-slate-700 rounded text-xs">' + escapeHtml(p) + '</span>';
+        if (i < (test.suitePath || []).length - 1) detailHtml += '<span class="text-slate-300">></span>';
+      });
+      detailHtml += '</div></div>';
+
+      // Metrics
+      detailHtml += '<div class="grid grid-cols-3 gap-3">';
+      detailHtml += '<div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center"><span class="block text-lg font-bold text-primary-500">' + formatDuration(test.duration) + '</span><span class="text-xs text-slate-500">' + t('duration') + '</span></div>';
+      detailHtml += '<div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center"><span class="block text-lg font-bold text-primary-500">' + (test.speed || 'N/A') + '</span><span class="text-xs text-slate-500">' + t('speed') + '</span></div>';
+      detailHtml += '<div class="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3 text-center"><span class="block text-lg font-bold ' + config.text + '">' + config.label + '</span><span class="text-xs text-slate-500">' + t('status') + '</span></div>';
+      detailHtml += '</div>';
+
+      // Error if failed
+      if (test.status === 'failed' && test.err) {
+        detailHtml += '<div><span class="text-xs font-semibold text-danger-500 uppercase flex items-center gap-1"><svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' + t('errorMessage') + '</span>';
+        detailHtml += '<div class="mt-1 bg-danger-500/5 border border-danger-500/20 rounded-lg p-3"><p class="text-danger-600 dark:text-danger-400 font-mono text-xs whitespace-pre-wrap">' + escapeHtml(test.err.message || 'Unknown error') + '</p></div></div>';
+
+        if (test.err.estack || test.err.stack) {
+          detailHtml += '<div><span class="text-xs font-semibold text-slate-500 uppercase">' + t('stackTrace') + '</span>';
+          detailHtml += '<div class="mt-1 bg-slate-900 rounded-lg p-3 overflow-x-auto"><pre class="text-xs text-slate-300 font-mono whitespace-pre-wrap">' + escapeHtml(test.err.estack || test.err.stack) + '</pre></div></div>';
+        }
+      }
+
+      // Code
+      if (test.code) {
+        detailHtml += '<div><span class="text-xs font-semibold text-slate-500 uppercase">' + t('testCode') + '</span>';
+        detailHtml += '<div class="mt-1 bg-slate-900 rounded-lg p-3 overflow-x-auto"><pre class="text-xs text-slate-300 font-mono">' + escapeHtml(test.code) + '</pre></div></div>';
+      }
+
+      detailHtml += '</div></div></div>';
+
+      // Add to body
+      const existingModal = document.getElementById('history-test-detail-modal');
+      if (existingModal) existingModal.remove();
+      document.body.insertAdjacentHTML('beforeend', detailHtml);
+    }
+
+    function closeHistoryTestDetail() {
+      const modal = document.getElementById('history-test-detail-modal');
+      if (modal) modal.remove();
     }
 
     // Show test detail

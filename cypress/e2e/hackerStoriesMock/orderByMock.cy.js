@@ -2,7 +2,16 @@ import data from '../../resources/data.config';
 import stories from '../../fixtures/stories.json';
 import { SELECTORS } from '../../support/selectors';
 
-describe('Order by (Mock)', { env: { snapshotOnly: true } }, () => {
+describe('Order by (Mock)', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-api',
+    executionType: 'regression',
+    product: 'hacker-stories',
+    module: 'stories',
+    functionality: 'integration',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       term: data.initialTerm,

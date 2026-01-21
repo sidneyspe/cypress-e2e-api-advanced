@@ -1,6 +1,15 @@
 import { SELECTORS } from '../../support/selectors';
 
-describe('Loading State (Mock)', { env: { snapshotOnly: true } }, () => {
+describe('Loading State (Mock)', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-frontend',
+    executionType: 'smoke',
+    product: 'hacker-stories',
+    module: 'user-experience',
+    functionality: 'integration',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       alias: 'getDelayedStories',

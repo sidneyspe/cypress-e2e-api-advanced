@@ -1,7 +1,16 @@
 import data from '../../resources/data.config';
 import { SELECTORS } from '../../support/selectors';
 
-describe('Search', { env: { snapshotOnly: true } }, () => {
+describe('Search', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-core',
+    executionType: 'smoke',
+    product: 'hacker-stories',
+    module: 'search',
+    functionality: 'e2e',
+  },
+}, () => {
   beforeEach(() => {
     cy.visit('/');
 

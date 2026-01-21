@@ -39,6 +39,8 @@ module.exports = {
     { id: 'user-management', name: 'Gestao de Usuarios' },
     { id: 'payments', name: 'Pagamentos' },
     { id: 'notifications', name: 'Notificacoes' },
+    { id: 'error-handling', name: 'Tratamento de Erros' },
+    { id: 'user-experience', name: 'Experiencia do Usuario' },
   ],
 
   // Functionality type options

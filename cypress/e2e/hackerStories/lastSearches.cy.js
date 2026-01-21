@@ -2,7 +2,16 @@ import { faker } from '@faker-js/faker';
 import data from '../../resources/data.config';
 import { SELECTORS } from '../../support/selectors';
 
-describe('Last Searches', { env: { snapshotOnly: true } }, () => {
+describe('Last Searches', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-frontend',
+    executionType: 'regression',
+    product: 'hacker-stories',
+    module: 'search',
+    functionality: 'e2e',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       term: data.initialTerm,

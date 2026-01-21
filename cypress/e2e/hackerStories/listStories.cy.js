@@ -1,7 +1,16 @@
 import data from '../../resources/data.config';
 import { SELECTORS } from '../../support/selectors';
 
-describe('List of Stories', { env: { snapshotOnly: true } }, () => {
+describe('List of Stories', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-frontend',
+    executionType: 'smoke',
+    product: 'hacker-stories',
+    module: 'stories',
+    functionality: 'e2e',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       term: data.initialTerm,

@@ -1,7 +1,16 @@
 import { faker } from '@faker-js/faker';
 import { SELECTORS } from '../../support/selectors';
 
-describe('Last Searches (Mock)', { env: { snapshotOnly: true } }, () => {
+describe('Last Searches (Mock)', {
+  env: { snapshotOnly: true },
+  tags: {
+    squad: 'qa-api',
+    executionType: 'regression',
+    product: 'hacker-stories',
+    module: 'search',
+    functionality: 'integration',
+  },
+}, () => {
   beforeEach(() => {
     cy.interceptStories({
       alias: 'getEmptyStories',
@@ -9,8 +18,9 @@ describe('Last Searches (Mock)', { env: { snapshotOnly: true } }, () => {
     });
 
     cy.visit('/');
+    cy.wait('@getEmptyStories');
 
-    cy.get(SELECTORS.search.input).should('not.be.visible').clear();
+    cy.get(SELECTORS.search.input).should('be.visible').clear();
   });
 
   it('shows a max of 5 buttons for the last searched terms', () => {
