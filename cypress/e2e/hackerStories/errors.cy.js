@@ -1,50 +1,42 @@
-import data from '../../../resources/data.config';
+import data from '../../resources/data.config';
+import { SELECTORS } from '../../support/selectors';
 
-const options = { env: { snapshotOnly: true } };
-
-describe('Errors', options, () => {
+describe('Errors', { env: { snapshotOnly: true } }, () => {
   beforeEach(() => {
-    cy.intercept({
-      method: 'GET',
-      pathname: '**/search',
-      query: {
-        query: data.initialTerm,
-        page: '0',
-      },
-    }).as('getStories');
+    cy.interceptStories({
+      term: data.initialTerm,
+      alias: 'getStories',
+    });
 
     cy.visit('/');
-
     cy.wait('@getStories');
   });
 
-  it('shows "Something went wrong ..." in case of a server error', () => {
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search**',
-      },
-      { statusCode: 500 }
-    ).as('getServerFailure');
+  context('Server Errors', () => {
+    it('shows error message on server error (500)', () => {
+      cy.interceptStories({
+        alias: 'getServerFailure',
+        statusCode: 500,
+      });
 
-    cy.visit('/');
-    cy.wait('@getServerFailure');
+      cy.visit('/');
+      cy.wait('@getServerFailure');
 
-    cy.get('p:contains(Something went wrong ...)').should('be.visible');
+      cy.get(SELECTORS.messages.error).should('be.visible');
+    });
   });
 
-  it('shows "Something went wrong ..." in case of a network error', () => {
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search**',
-      },
-      { forceNetworkError: true }
-    ).as('getNetworkFailure');
+  context('Network Errors', () => {
+    it('shows error message on network failure', () => {
+      cy.interceptStories({
+        alias: 'getNetworkFailure',
+        forceNetworkError: true,
+      });
 
-    cy.visit('/');
-    cy.wait('@getNetworkFailure');
+      cy.visit('/');
+      cy.wait('@getNetworkFailure');
 
-    cy.get('p:contains(Something!! went wrong ...)').should('be.visible');
+      cy.get(SELECTORS.messages.error).should('be.visible');
+    });
   });
 });

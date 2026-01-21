@@ -1,63 +1,53 @@
-import data from '../../../resources/data.config';
+import data from '../../resources/data.config';
+import { SELECTORS } from '../../support/selectors';
 
-const options = { env: { snapshotOnly: true } };
-
-describe('Search', options, () => {
+describe('Search (Mock)', { env: { snapshotOnly: true } }, () => {
   beforeEach(() => {
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search',
-        query: {
-          query: data.initialTerm,
-          page: '0',
-        },
-      },
-      { fixture: 'empty' }
-    ).as('getEmptyStories');
+    cy.interceptStories({
+      term: data.initialTerm,
+      alias: 'getEmptyStories',
+      fixture: 'empty',
+    });
 
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search',
-        query: {
-          query: data.newTerm,
-          page: '0',
-        },
-      },
-      { fixture: 'stories' }
-    ).as('getStories');
+    cy.interceptStories({
+      term: data.newTerm,
+      alias: 'getStories',
+      fixture: 'stories',
+    });
 
     cy.visit('/');
     cy.wait('@getEmptyStories');
 
-    cy.get('#search').should('be.visible').clear();
+    cy.get(SELECTORS.search.input).should('be.visible').clear();
   });
 
-  it('types and hits ENTER', () => {
-    cy.get('#search').should('be.visible').type(`${data.newTerm}{enter}`);
+  context('Search Methods', () => {
+    it('types and hits ENTER', () => {
+      cy.searchByEnter(data.newTerm);
+      cy.wait('@getStories');
 
-    cy.wait('@getStories');
+      cy.verifySearchResults({
+        term: data.newTerm,
+        itemCount: 2,
+        previousSearchVisible: data.initialTerm,
+      });
+    });
 
-    cy.getLocalStorage('search').should('be.equal', data.newTerm);
+    it('types and clicks the submit button', () => {
+      cy.searchBySubmitButton(data.newTerm);
+      cy.wait('@getStories');
 
-    cy.get('.item').should('have.length', 2);
-    cy.get(`button:contains(${data.initialTerm})`).should('be.visible');
+      cy.verifySearchResults({
+        term: data.newTerm,
+        itemCount: 2,
+        previousSearchVisible: data.initialTerm,
+      });
+    });
   });
 
-  it('types and clicks the submit button', () => {
-    cy.get('#search').should('be.visible').type(data.newTerm);
-    cy.contains('Submit').should('be.visible').click();
-
-    cy.wait('@getStories');
-
-    cy.getLocalStorage('search').should('be.equal', data.newTerm);
-
-    cy.get('.item').should('have.length', 2);
-    cy.get(`button:contains(${data.initialTerm})`).should('be.visible');
-  });
-
-  it('shows no story when none is returned', () => {
-    cy.get('.item').should('not.exist');
+  context('Empty Results', () => {
+    it('shows no story when none is returned', () => {
+      cy.get(SELECTORS.stories.item).should('not.exist');
+    });
   });
 });

@@ -1,112 +1,92 @@
-import data from '../../../resources/data.config';
-import stories from '../../../fixtures/stories.json';
+import data from '../../resources/data.config';
+import stories from '../../fixtures/stories.json';
+import { SELECTORS } from '../../support/selectors';
 
-const options = { env: { snapshotOnly: true } };
-
-describe('Order by', options, () => {
+describe('Order by (Mock)', { env: { snapshotOnly: true } }, () => {
   beforeEach(() => {
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search',
-        query: {
-          query: data.initialTerm,
-          page: '0',
-        },
-      },
-      { fixture: 'stories' }
-    ).as('getStories');
+    cy.interceptStories({
+      term: data.initialTerm,
+      alias: 'getStories',
+      fixture: 'stories',
+    });
 
     cy.visit('/');
-
     cy.wait('@getStories');
   });
 
-  it('orders by title', () => {
-    cy.get('.list-header-button:contains(Title)')
-      .as('titleHeader')
-      .should('be.visible')
-      .click();
+  context('Sort by Title', () => {
+    it('orders by title ascending and descending', () => {
+      cy.sortBy('title');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[0].title);
 
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[0].title);
+      cy.get(SELECTORS.stories.itemLink(stories.hits[0].title)).should(
+        'have.attr',
+        'href',
+        stories.hits[0].url
+      );
 
-    cy.get(`.item a:contains(${stories.hits[0].title})`).should(
-      'have.attr',
-      'href',
-      stories.hits[0].url
-    );
+      cy.sortBy('title');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[1].title);
 
-    cy.get('@titleHeader').click();
-
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[1].title);
-
-    cy.get(`.item a:contains(${stories.hits[1].title})`).should(
-      'have.attr',
-      'href',
-      stories.hits[1].url
-    );
+      cy.get(SELECTORS.stories.itemLink(stories.hits[1].title)).should(
+        'have.attr',
+        'href',
+        stories.hits[1].url
+      );
+    });
   });
 
-  it('orders by author', () => {
-    cy.get('.list-header-button:contains(Author)')
-      .as('authorHeader')
-      .should('be.visible')
-      .click();
+  context('Sort by Author', () => {
+    it('orders by author ascending and descending', () => {
+      cy.sortBy('author');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[0].author);
 
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[0].author);
-
-    cy.get('@authorHeader').click();
-
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[1].author);
+      cy.sortBy('author');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[1].author);
+    });
   });
 
-  it('orders by comments', () => {
-    cy.get('.list-header-button:contains(Comments)')
-      .as('commentsHeader')
-      .should('be.visible')
-      .click();
+  context('Sort by Comments', () => {
+    it('orders by comments ascending and descending', () => {
+      cy.sortBy('comments');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[1].num_comments);
 
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[1].num_comments);
-
-    cy.get('@commentsHeader').click();
-
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[0].num_comments);
+      cy.sortBy('comments');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[0].num_comments);
+    });
   });
 
-  it('orders by points', () => {
-    cy.get('.list-header-button:contains(Title)')
-      .as('pointsHeader')
-      .should('be.visible')
-      .click();
+  context('Sort by Points', () => {
+    it('orders by points ascending and descending', () => {
+      cy.sortBy('points');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[0].points);
 
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[0].points);
-
-    cy.get('@pointsHeader').click();
-
-    cy.get('.item')
-      .first()
-      .should('be.visible')
-      .and('contain', stories.hits[1].points);
+      cy.sortBy('points');
+      cy.get(SELECTORS.stories.item)
+        .first()
+        .should('be.visible')
+        .and('contain', stories.hits[1].points);
+    });
   });
 });

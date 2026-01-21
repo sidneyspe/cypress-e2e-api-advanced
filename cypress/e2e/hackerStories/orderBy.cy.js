@@ -1,28 +1,29 @@
-import data from '../../../resources/data.config';
+import data from '../../resources/data.config';
 
-const options = { env: { snapshotOnly: true } };
-
-describe('Order by', options, () => {
+describe('Order by', { env: { snapshotOnly: true } }, () => {
   beforeEach(() => {
-    cy.intercept({
-      method: 'GET',
-      pathname: '**/search',
-      query: {
-        query: data.initialTerm,
-        page: '0',
-      },
-    }).as('getStories');
+    cy.interceptStories({
+      term: data.initialTerm,
+      alias: 'getStories',
+    });
 
     cy.visit('/');
-
     cy.wait('@getStories');
   });
 
-  it('orders by title', () => {});
+  it.skip('orders by title', () => {
+    cy.sortBy('title');
+  });
 
-  it('orders by author', () => {});
+  it.skip('orders by author', () => {
+    cy.sortBy('author');
+  });
 
-  it('orders by comments', () => {});
+  it.skip('orders by comments', () => {
+    cy.sortBy('comments');
+  });
 
-  it('orders by points', () => {});
+  it.skip('orders by points', () => {
+    cy.sortBy('points');
+  });
 });

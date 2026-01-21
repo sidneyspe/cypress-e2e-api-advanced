@@ -1,14 +1,12 @@
-const options = { env: { snapshotOnly: true } };
+import { SELECTORS } from '../../support/selectors';
 
-describe('List of stories', options, () => {
+describe('Loading State (Mock)', { env: { snapshotOnly: true } }, () => {
   beforeEach(() => {
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search**',
-      },
-      { delay: 1000, fixture: 'stories' }
-    ).as('getDelayedStories');
+    cy.interceptStories({
+      alias: 'getDelayedStories',
+      fixture: 'stories',
+      delay: 1000,
+    });
   });
 
   it('shows a "Loading ..." state before showing the results', () => {
@@ -17,6 +15,6 @@ describe('List of stories', options, () => {
     cy.assertLoadingIsShownAndHidden();
     cy.wait('@getDelayedStories');
 
-    cy.get('.item').should('have.length', 2);
+    cy.get(SELECTORS.stories.item).should('have.length', 2);
   });
 });

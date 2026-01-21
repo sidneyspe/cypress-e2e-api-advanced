@@ -1,40 +1,34 @@
 import { faker } from '@faker-js/faker';
+import { SELECTORS } from '../../support/selectors';
 
-const options = { env: { snapshotOnly: true } };
-
-describe('Last searches', options, () => {
+describe('Last Searches (Mock)', { env: { snapshotOnly: true } }, () => {
   beforeEach(() => {
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search**',
-      },
-      { fixture: 'empty' }
-    ).as('getEmptyStories');
+    cy.interceptStories({
+      alias: 'getEmptyStories',
+      fixture: 'empty',
+    });
 
     cy.visit('/');
 
-    cy.get('#search').should('be.visible').clear();
+    cy.get(SELECTORS.search.input).should('be.visible').clear();
   });
 
   it('shows a max of 5 buttons for the last searched terms', () => {
-    cy.intercept(
-      {
-        method: 'GET',
-        pathname: '**/search**',
-      },
-      { fixture: 'empty' }
-    ).as('getRandomStories');
+    cy.interceptStories({
+      alias: 'getRandomStories',
+      fixture: 'empty',
+    });
 
-    Cypress._.times(6, () => {
-      const randomWord = faker.random.word();
-      cy.get('#search').should('be.visible').clear();
-      cy.get('#search').should('be.visible').type(`${randomWord}{enter}`);
+    const searchCount = 6;
+
+    Cypress._.times(searchCount, () => {
+      const randomWord = faker.word.sample();
+      cy.searchByEnter(randomWord);
       cy.wait('@getRandomStories');
       cy.getLocalStorage('search').should('be.equal', randomWord);
     });
 
-    cy.get('.last-searches').within(() => {
+    cy.get(SELECTORS.search.lastSearches).within(() => {
       cy.get('button').should('have.length', 5);
     });
   });

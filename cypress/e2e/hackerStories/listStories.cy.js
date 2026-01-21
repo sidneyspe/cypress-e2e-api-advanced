@@ -1,44 +1,38 @@
-import data from '../../../resources/data.config';
+import data from '../../resources/data.config';
+import { SELECTORS } from '../../support/selectors';
 
-const options = { env: { snapshotOnly: true } };
-
-describe('List of stories', options, () => {
+describe('List of Stories', { env: { snapshotOnly: true } }, () => {
   beforeEach(() => {
-    cy.intercept({
-      method: 'GET',
-      pathname: '**/search',
-      query: {
-        query: data.initialTerm,
-        page: '0',
-      },
-    }).as('getStories');
+    cy.interceptStories({
+      term: data.initialTerm,
+      alias: 'getStories',
+    });
 
     cy.visit('/');
-
     cy.wait('@getStories');
   });
 
-  it('shows 20 stories, then the next 20 after clicking "More"', () => {
-    cy.intercept({
-      method: 'GET',
-      pathname: '**/search',
-      query: {
-        query: data.initialTerm,
+  context('Pagination', () => {
+    it('shows 20 stories, then the next 20 after clicking "More"', () => {
+      cy.interceptStories({
+        term: data.initialTerm,
         page: '1',
-      },
-    }).as('getNextStories');
+        alias: 'getNextStories',
+      });
 
-    cy.get('.item').should('have.length', 20);
-    cy.contains('More').should('be.visible').click();
+      cy.get(SELECTORS.stories.item).should('have.length', 20);
+      cy.get(SELECTORS.stories.moreButton).should('be.visible').click();
 
-    cy.wait('@getNextStories');
+      cy.wait('@getNextStories');
 
-    cy.get('.item').should('have.length', 40);
+      cy.get(SELECTORS.stories.item).should('have.length', 40);
+    });
   });
 
-  it('shows only nineteen stories after dimissing the first story', () => {
-    cy.get('.button-small').first().should('be.visible').click();
-
-    cy.get('.item').should('have.length', 19);
+  context('Dismiss Story', () => {
+    it('shows only 19 stories after dismissing the first story', () => {
+      cy.dismissStory(0);
+      cy.get(SELECTORS.stories.item).should('have.length', 19);
+    });
   });
 });
