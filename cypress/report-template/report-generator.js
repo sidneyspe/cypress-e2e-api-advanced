@@ -24,6 +24,7 @@ try {
 }
 
 const HistoryManager = require('./history-manager.js');
+const { extractDistinctTags, extractTagsFromFile } = require('./extract-tags.js');
 
 function getDefaultTheme() {
   return {
@@ -146,6 +147,15 @@ const translations = {
     smoke: 'Smoke',
     sanity: 'Sanity',
     exploratory: 'Exploratorio',
+    // Filter dropdowns
+    filters: 'Filtros',
+    searchPlaceholder: 'Pesquisar...',
+    selectAll: 'Selecionar Todos',
+    clearAll: 'Limpar',
+    selected: 'selecionado(s)',
+    noOptions: 'Nenhuma opcao encontrada',
+    applyFilters: 'Aplicar Filtros',
+    clearFilters: 'Limpar Filtros',
   },
   en: {
     testReport: 'Test Report',
@@ -229,6 +239,15 @@ const translations = {
     smoke: 'Smoke',
     sanity: 'Sanity',
     exploratory: 'Exploratory',
+    // Filter dropdowns
+    filters: 'Filters',
+    searchPlaceholder: 'Search...',
+    selectAll: 'Select All',
+    clearAll: 'Clear',
+    selected: 'selected',
+    noOptions: 'No options found',
+    applyFilters: 'Apply Filters',
+    clearFilters: 'Clear Filters',
   },
 };
 
@@ -242,6 +261,14 @@ class ReportGenerator {
     this.execConfig = executionConfig;
     this.testIndex = 0;
     this.historyManager = new HistoryManager();
+
+    // Extract distinct tags from test files
+    try {
+      this.distinctTags = extractDistinctTags();
+    } catch (e) {
+      console.log('⚠️  Could not extract tags from test files:', e.message);
+      this.distinctTags = { distinct: { squads: [], executionTypes: [], products: [], modules: [], functionalities: [] } };
+    }
 
     // Parse tags from command line
     this.tags = this.parseTags(options);
@@ -333,9 +360,37 @@ class ReportGenerator {
     const tests = [];
     this.testIndex = 0;
 
+    // Build a map of file paths to tags
+    const fileTagsMap = {};
+    if (this.distinctTags && this.distinctTags.testTags) {
+      this.distinctTags.testTags.forEach((item) => {
+        // Normalize path for comparison (handle both / and \)
+        const normalizedPath = item.file.replace(/\\/g, '/').toLowerCase();
+        fileTagsMap[normalizedPath] = item.tags;
+      });
+    }
+
+    const getTagsForFile = (filePath) => {
+      if (!filePath) return null;
+      // Normalize the file path for lookup
+      const normalized = filePath.replace(/\\/g, '/').toLowerCase();
+      // Try exact match first
+      if (fileTagsMap[normalized]) return fileTagsMap[normalized];
+      // Try partial match (file might have different base path)
+      for (const key of Object.keys(fileTagsMap)) {
+        if (normalized.endsWith(key) || key.endsWith(normalized) ||
+            normalized.includes(key.split('/').slice(-2).join('/')) ||
+            key.includes(normalized.split('/').slice(-2).join('/'))) {
+          return fileTagsMap[key];
+        }
+      }
+      return null;
+    };
+
     const processSuite = (suite, parentPath = [], parentFile = '') => {
       const currentPath = suite.title ? [...parentPath, suite.title] : parentPath;
       const file = suite.file || parentFile;
+      const fileTags = getTagsForFile(file);
 
       (suite.tests || []).forEach((test) => {
         tests.push({
@@ -351,6 +406,7 @@ class ReportGenerator {
           context: test.context || null,
           file: file,
           uuid: test.uuid || '',
+          tags: fileTags || {},
         });
       });
 
@@ -471,8 +527,16 @@ class ReportGenerator {
 
   generateTestList(allTests) {
     return allTests
-      .map(
-        (test) => `
+      .map((test) => {
+        // Generate tag badges
+        const tags = test.tags || {};
+        const tagBadges = [];
+        if (tags.squad) tagBadges.push(`<span class="px-1.5 py-0.5 text-xs rounded bg-primary-500/10 text-primary-600 dark:text-primary-400">${this.escapeHtml(tags.squad)}</span>`);
+        if (tags.executionType) tagBadges.push(`<span class="px-1.5 py-0.5 text-xs rounded bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">${this.escapeHtml(tags.executionType)}</span>`);
+        if (tags.module) tagBadges.push(`<span class="px-1.5 py-0.5 text-xs rounded bg-warning-500/10 text-warning-600 dark:text-warning-400">${this.escapeHtml(tags.module)}</span>`);
+        if (tags.functionality) tagBadges.push(`<span class="px-1.5 py-0.5 text-xs rounded bg-success-500/10 text-success-600 dark:text-success-400">${this.escapeHtml(tags.functionality)}</span>`);
+
+        return `
       <div class="test-item flex items-center gap-4 p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary-500/50 transition-all cursor-pointer" data-status="${test.status}" data-test-id="${test.id}" onclick="showTestDetail('${test.id}')">
         <div class="w-10 h-10 rounded-lg flex items-center justify-center ${test.status === 'passed' ? 'bg-success-500/10' : test.status === 'failed' ? 'bg-danger-500/10' : 'bg-warning-500/10'}">
           <svg class="w-5 h-5 ${test.status === 'passed' ? 'text-success-500' : test.status === 'failed' ? 'text-danger-500' : 'text-warning-500'}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -481,15 +545,18 @@ class ReportGenerator {
         </div>
         <div class="flex-1 min-w-0">
           <h4 class="font-medium text-slate-900 dark:text-white truncate">${this.escapeHtml(test.title)}</h4>
-          <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${this.escapeHtml(test.suitePath.join(' > '))}</p>
+          <div class="flex items-center gap-2 mt-1">
+            <p class="text-sm text-slate-500 dark:text-slate-400 truncate">${this.escapeHtml(test.suitePath.join(' > '))}</p>
+            ${tagBadges.length > 0 ? `<div class="flex items-center gap-1 flex-shrink-0">${tagBadges.join('')}</div>` : ''}
+          </div>
         </div>
         <div class="flex items-center gap-3">
           <span class="text-sm text-slate-500 dark:text-slate-400 font-mono">${this.formatDuration(test.duration)}</span>
           <svg class="w-5 h-5 text-slate-300 dark:text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
         </div>
       </div>
-    `
-      )
+    `;
+      })
       .join('');
   }
 
@@ -731,55 +798,150 @@ class ReportGenerator {
     <!-- Main Content -->
     <main class="flex-1 ml-72 p-8">
 
-      <!-- Tags Section (Always visible at top) -->
+      <!-- Filters Section (Always visible at top) -->
       <div class="mb-6 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
-        <div class="flex flex-wrap items-center gap-3">
-          <span class="text-sm font-semibold text-slate-700 dark:text-slate-300" data-i18n="executionTags">Tags da Execucao:</span>
-
-          <!-- Squad Tag -->
-          <span class="tag-badge bg-primary-500/10 text-primary-600 dark:text-primary-400">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            ${this.getTagLabel('squad', this.tags.squad)}
+        <div class="flex flex-wrap items-center gap-3 mb-3">
+          <span class="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+            <svg class="w-4 h-4 text-primary-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+            </svg>
+            <span data-i18n="filters">Filtros</span>
           </span>
 
-          <!-- Execution Type Tag -->
-          <span class="tag-badge bg-secondary-500/10 text-secondary-600 dark:text-secondary-400">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            ${this.getTagLabel('executionType', this.tags.executionType)}
-          </span>
-
-          <!-- Product Tag -->
-          <span class="tag-badge bg-info-500/10 text-info-600 dark:text-info-400">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-            ${this.getTagLabel('product', this.tags.product)}
-          </span>
-
-          <!-- Module Tag -->
-          <span class="tag-badge bg-warning-500/10 text-warning-600 dark:text-warning-400">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
-            ${this.getTagLabel('module', this.tags.module)}
-          </span>
-
-          <!-- Functionality Tag -->
-          <span class="tag-badge bg-success-500/10 text-success-600 dark:text-success-400">
-            <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-            ${this.getTagLabel('functionality', this.tags.functionality)}
-          </span>
-
-          <!-- Date Selector -->
-          <div class="ml-auto flex items-center gap-2">
-            <div class="relative">
-              <input type="text" id="date-input" value="${currentDate}"
-                class="w-32 px-3 py-1.5 text-sm bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-center font-mono"
-                placeholder="DD/MM/AAAA" maxlength="10" onclick="this.select()" onchange="onDateInputChange(this.value)">
+          <!-- Squad Dropdown -->
+          <div class="filter-dropdown relative" data-filter="squad">
+            <button type="button" onclick="toggleDropdown('squad')" class="dropdown-trigger flex items-center gap-2 px-3 py-1.5 bg-primary-500/10 hover:bg-primary-500/20 border border-primary-500/20 text-primary-600 dark:text-primary-400 rounded-lg text-sm font-medium transition-all">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/></svg>
+              <span data-i18n="squad">Squad</span>
+              <span class="filter-count hidden px-1.5 py-0.5 bg-primary-500 text-white text-xs rounded-full"></span>
+              <svg class="w-3.5 h-3.5 transition-transform dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dropdown-menu hidden absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                <input type="text" placeholder="Pesquisar..." class="dropdown-search w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500" data-i18n-placeholder="searchPlaceholder">
+              </div>
+              <div class="dropdown-options max-h-48 overflow-y-auto p-2 space-y-1">
+                ${this.distinctTags.distinct.squads.map(s => `<label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"><input type="checkbox" value="${s}" class="w-4 h-4 rounded border-slate-300 text-primary-500 focus:ring-primary-500"><span class="text-sm text-slate-700 dark:text-slate-300">${s}</span></label>`).join('')}
+              </div>
+              <div class="p-2 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                <button onclick="selectAllInDropdown('squad')" class="flex-1 px-2 py-1.5 text-xs font-medium text-primary-500 hover:bg-primary-500/10 rounded-lg transition-colors" data-i18n="selectAll">Selecionar Todos</button>
+                <button onclick="clearDropdown('squad')" class="flex-1 px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" data-i18n="clearAll">Limpar</button>
+              </div>
             </div>
-            <input type="date" id="date-picker" class="w-10 h-8 opacity-0 absolute" onchange="onDatePickerChange(this.value)">
-            <button onclick="document.getElementById('date-picker').showPicker()" class="p-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-all" title="Escolher data">
-              <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          </div>
+
+          <!-- Execution Type Dropdown -->
+          <div class="filter-dropdown relative" data-filter="executionType">
+            <button type="button" onclick="toggleDropdown('executionType')" class="dropdown-trigger flex items-center gap-2 px-3 py-1.5 bg-secondary-500/10 hover:bg-secondary-500/20 border border-secondary-500/20 text-secondary-600 dark:text-secondary-400 rounded-lg text-sm font-medium transition-all">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span data-i18n="executionType">Tipo</span>
+              <span class="filter-count hidden px-1.5 py-0.5 bg-secondary-500 text-white text-xs rounded-full"></span>
+              <svg class="w-3.5 h-3.5 transition-transform dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dropdown-menu hidden absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                <input type="text" placeholder="Pesquisar..." class="dropdown-search w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary-500" data-i18n-placeholder="searchPlaceholder">
+              </div>
+              <div class="dropdown-options max-h-48 overflow-y-auto p-2 space-y-1">
+                ${this.distinctTags.distinct.executionTypes.map(s => `<label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"><input type="checkbox" value="${s}" class="w-4 h-4 rounded border-slate-300 text-secondary-500 focus:ring-secondary-500"><span class="text-sm text-slate-700 dark:text-slate-300">${s}</span></label>`).join('')}
+              </div>
+              <div class="p-2 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                <button onclick="selectAllInDropdown('executionType')" class="flex-1 px-2 py-1.5 text-xs font-medium text-secondary-500 hover:bg-secondary-500/10 rounded-lg transition-colors" data-i18n="selectAll">Selecionar Todos</button>
+                <button onclick="clearDropdown('executionType')" class="flex-1 px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" data-i18n="clearAll">Limpar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Product Dropdown -->
+          <div class="filter-dropdown relative" data-filter="product">
+            <button type="button" onclick="toggleDropdown('product')" class="dropdown-trigger flex items-center gap-2 px-3 py-1.5 bg-info-500/10 hover:bg-info-500/20 border border-info-500/20 text-info-600 dark:text-info-400 rounded-lg text-sm font-medium transition-all">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
+              <span data-i18n="product">Produto</span>
+              <span class="filter-count hidden px-1.5 py-0.5 bg-info-500 text-white text-xs rounded-full"></span>
+              <svg class="w-3.5 h-3.5 transition-transform dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dropdown-menu hidden absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                <input type="text" placeholder="Pesquisar..." class="dropdown-search w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-info-500" data-i18n-placeholder="searchPlaceholder">
+              </div>
+              <div class="dropdown-options max-h-48 overflow-y-auto p-2 space-y-1">
+                ${this.distinctTags.distinct.products.map(s => `<label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"><input type="checkbox" value="${s}" class="w-4 h-4 rounded border-slate-300 text-info-500 focus:ring-info-500"><span class="text-sm text-slate-700 dark:text-slate-300">${s}</span></label>`).join('')}
+              </div>
+              <div class="p-2 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                <button onclick="selectAllInDropdown('product')" class="flex-1 px-2 py-1.5 text-xs font-medium text-info-500 hover:bg-info-500/10 rounded-lg transition-colors" data-i18n="selectAll">Selecionar Todos</button>
+                <button onclick="clearDropdown('product')" class="flex-1 px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" data-i18n="clearAll">Limpar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Module Dropdown -->
+          <div class="filter-dropdown relative" data-filter="module">
+            <button type="button" onclick="toggleDropdown('module')" class="dropdown-trigger flex items-center gap-2 px-3 py-1.5 bg-warning-500/10 hover:bg-warning-500/20 border border-warning-500/20 text-warning-600 dark:text-warning-400 rounded-lg text-sm font-medium transition-all">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              <span data-i18n="module">Modulo</span>
+              <span class="filter-count hidden px-1.5 py-0.5 bg-warning-500 text-white text-xs rounded-full"></span>
+              <svg class="w-3.5 h-3.5 transition-transform dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dropdown-menu hidden absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                <input type="text" placeholder="Pesquisar..." class="dropdown-search w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-warning-500" data-i18n-placeholder="searchPlaceholder">
+              </div>
+              <div class="dropdown-options max-h-48 overflow-y-auto p-2 space-y-1">
+                ${this.distinctTags.distinct.modules.map(s => `<label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"><input type="checkbox" value="${s}" class="w-4 h-4 rounded border-slate-300 text-warning-500 focus:ring-warning-500"><span class="text-sm text-slate-700 dark:text-slate-300">${s}</span></label>`).join('')}
+              </div>
+              <div class="p-2 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                <button onclick="selectAllInDropdown('module')" class="flex-1 px-2 py-1.5 text-xs font-medium text-warning-500 hover:bg-warning-500/10 rounded-lg transition-colors" data-i18n="selectAll">Selecionar Todos</button>
+                <button onclick="clearDropdown('module')" class="flex-1 px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" data-i18n="clearAll">Limpar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Functionality Dropdown -->
+          <div class="filter-dropdown relative" data-filter="functionality">
+            <button type="button" onclick="toggleDropdown('functionality')" class="dropdown-trigger flex items-center gap-2 px-3 py-1.5 bg-success-500/10 hover:bg-success-500/20 border border-success-500/20 text-success-600 dark:text-success-400 rounded-lg text-sm font-medium transition-all">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+              <span data-i18n="functionality">Funcionalidade</span>
+              <span class="filter-count hidden px-1.5 py-0.5 bg-success-500 text-white text-xs rounded-full"></span>
+              <svg class="w-3.5 h-3.5 transition-transform dropdown-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="dropdown-menu hidden absolute top-full left-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden">
+              <div class="p-2 border-b border-slate-200 dark:border-slate-700">
+                <input type="text" placeholder="Pesquisar..." class="dropdown-search w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-success-500" data-i18n-placeholder="searchPlaceholder">
+              </div>
+              <div class="dropdown-options max-h-48 overflow-y-auto p-2 space-y-1">
+                ${this.distinctTags.distinct.functionalities.map(s => `<label class="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 rounded-lg cursor-pointer transition-colors"><input type="checkbox" value="${s}" class="w-4 h-4 rounded border-slate-300 text-success-500 focus:ring-success-500"><span class="text-sm text-slate-700 dark:text-slate-300">${s}</span></label>`).join('')}
+              </div>
+              <div class="p-2 border-t border-slate-200 dark:border-slate-700 flex gap-2">
+                <button onclick="selectAllInDropdown('functionality')" class="flex-1 px-2 py-1.5 text-xs font-medium text-success-500 hover:bg-success-500/10 rounded-lg transition-colors" data-i18n="selectAll">Selecionar Todos</button>
+                <button onclick="clearDropdown('functionality')" class="flex-1 px-2 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors" data-i18n="clearAll">Limpar</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Date Selector (styled for theme) -->
+          <div class="ml-auto flex items-center gap-2">
+            <div class="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg">
+              <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>
               </svg>
-            </button>
+              <input type="text" id="date-input" value="${currentDate}"
+                class="w-28 text-sm bg-transparent text-slate-700 dark:text-slate-300 text-center font-medium focus:outline-none"
+                placeholder="DD/MM/AAAA" maxlength="10" onclick="this.select()" onchange="onDateInputChange(this.value)">
+              <input type="date" id="date-picker" class="sr-only" onchange="onDatePickerChange(this.value)">
+              <button onclick="document.getElementById('date-picker').showPicker()" class="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-all" title="Escolher data" data-i18n-title="pickDate">
+                <svg class="w-4 h-4 text-slate-500 dark:text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="6 9 12 15 18 9"/>
+                </svg>
+              </button>
+            </div>
           </div>
+        </div>
+
+        <!-- Active filters display -->
+        <div id="active-filters" class="hidden flex flex-wrap items-center gap-2 pt-3 border-t border-slate-200 dark:border-slate-700 mt-3">
+          <span class="text-xs text-slate-500 dark:text-slate-400" data-i18n="filters">Filtros ativos:</span>
+          <div id="active-filters-list" class="flex flex-wrap gap-1"></div>
+          <button onclick="clearAllFilters()" class="ml-2 text-xs text-danger-500 hover:text-danger-600 font-medium" data-i18n="clearFilters">Limpar Filtros</button>
         </div>
       </div>
 
@@ -1144,25 +1306,56 @@ class ReportGenerator {
         btn.classList.toggle('bg-slate-100', !isActive);
         btn.classList.toggle('dark:bg-slate-700', !isActive);
       });
+
+      // Get filtered tests based on tag filters
+      const filteredTests = getFilteredTests();
+      const filters = getActiveFilters();
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      const hasActiveFilters = filterNames.some(name => filters[name] && filters[name].length > 0);
+
+      let visibleCount = 0;
       document.querySelectorAll('.test-item').forEach(item => {
-        item.style.display = (status === 'all' || item.dataset.status === status) ? 'flex' : 'none';
+        const testId = item.dataset.testId;
+        const test = window.allTests.find(t => t.id === testId);
+        const matchesTagFilter = !hasActiveFilters || testMatchesFilters(test, filters);
+        const matchesStatusFilter = status === 'all' || item.dataset.status === status;
+
+        if (matchesTagFilter && matchesStatusFilter) {
+          item.style.display = 'flex';
+          visibleCount++;
+        } else {
+          item.style.display = 'none';
+        }
       });
-      const count = status === 'all' ? window.allTests.length : window.allTests.filter(t => t.status === status).length;
-      document.getElementById('tests-subtitle').textContent = status === 'all' ? t('showingAllTests') : t('showingTests').replace('{status}', t(status === 'pending' ? 'skipped' : status)) + ' (' + count + ')';
+
+      const statusTests = status === 'all' ? filteredTests : filteredTests.filter(t => t.status === status);
+      const statusLabel = status === 'all' ? t('showingAllTests') : t('showingTests').replace('{status}', t(status === 'pending' ? 'skipped' : status));
+      document.getElementById('tests-subtitle').textContent = statusLabel + ' (' + visibleCount + ')';
     }
 
     // Show tests by type
     function showTestsByType(type) {
       navigateTo('tests');
-      const matchingTests = window.allTests.filter(t => {
+      const filteredTests = getFilteredTests();
+      const filters = getActiveFilters();
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      const hasActiveFilters = filterNames.some(name => filters[name] && filters[name].length > 0);
+
+      const matchingTests = filteredTests.filter(t => {
         const file = (t.file || '').toLowerCase();
         if (type === 'mock') return file.includes('mock');
         if (type === 'integration') return file.includes('api');
         if (type === 'e2e') return !file.includes('mock') && !file.includes('api');
         return false;
       });
+
       document.querySelectorAll('.test-item').forEach(item => {
-        item.style.display = matchingTests.some(t => t.id === item.dataset.testId) ? 'flex' : 'none';
+        const testId = item.dataset.testId;
+        const test = window.allTests.find(t => t.id === testId);
+        const matchesTagFilter = !hasActiveFilters || testMatchesFilters(test, filters);
+        const matchesTypeFilter = matchingTests.some(t => t.id === testId);
+
+        item.style.display = (matchesTagFilter && matchesTypeFilter) ? 'flex' : 'none';
       });
       document.getElementById('tests-subtitle').textContent = t(type + 'Tests') + ' (' + matchingTests.length + ' testes)';
     }
@@ -1201,6 +1394,29 @@ class ReportGenerator {
 
     // History Modal with full report
     function showHistoryModal(exec) {
+      // Store current execution for filter updates
+      window.currentHistoryExec = exec;
+
+      // Check for active filters
+      const filters = getActiveFilters();
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      const hasActiveFilters = filterNames.some(name => filters[name] && filters[name].length > 0);
+
+      // Build active filters indicator
+      let activeFiltersHtml = '';
+      if (hasActiveFilters) {
+        const colorMap = { squad: 'primary', executionType: 'secondary', product: 'info', module: 'warning', functionality: 'success' };
+        activeFiltersHtml = '<div class="flex flex-wrap items-center gap-1 mt-2 pt-2 border-t border-slate-200 dark:border-slate-700"><span class="text-xs text-slate-500">' + t('filters') + ':</span>';
+        filterNames.forEach(name => {
+          if (filters[name] && filters[name].length > 0) {
+            filters[name].forEach(val => {
+              activeFiltersHtml += '<span class="px-1.5 py-0.5 text-xs rounded bg-' + colorMap[name] + '-500/10 text-' + colorMap[name] + '-500">' + val + '</span>';
+            });
+          }
+        });
+        activeFiltersHtml += '</div>';
+      }
+
       const passRate = exec.summary.passRate || 0;
       const healthColor = passRate >= 90 ? 'success' : passRate >= 70 ? 'warning' : 'danger';
       const healthText = passRate >= 90 ? t('excellent') : passRate >= 70 ? t('good') : t('needsWork');
@@ -1223,14 +1439,14 @@ class ReportGenerator {
       }
 
       // Header HTML
-      document.getElementById('modal-header').innerHTML = '<div class="flex items-center gap-4 flex-1"><div class="w-14 h-14 rounded-xl bg-' + healthColor + '-500/10 flex items-center justify-center"><span class="text-xl font-bold text-' + healthColor + '-500">' + passRate + '%</span></div><div class="flex-1"><h3 class="text-xl font-bold text-slate-900 dark:text-white">' + t('executionHistory') + ' - ' + exec.date + '</h3><div class="flex flex-wrap items-center gap-2 mt-2">' + tagsHtml + '</div></div></div><button onclick="closeModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"><svg class="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+      document.getElementById('modal-header').innerHTML = '<div class="flex items-center gap-4 flex-1"><div class="w-14 h-14 rounded-xl bg-' + healthColor + '-500/10 flex items-center justify-center"><span class="text-xl font-bold text-' + healthColor + '-500">' + passRate + '%</span></div><div class="flex-1"><h3 class="text-xl font-bold text-slate-900 dark:text-white">' + t('executionHistory') + ' - ' + exec.date + '</h3><div class="flex flex-wrap items-center gap-2 mt-2">' + tagsHtml + '</div>' + activeFiltersHtml + '</div></div><button onclick="closeModal()" class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-all"><svg class="w-6 h-6 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
 
       // Content HTML - Stats Cards
       let content = '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">';
-      content += '<div class="bg-info-500/10 rounded-xl p-4 text-center"><span class="block text-3xl font-bold text-info-500">' + exec.summary.total + '</span><span class="text-sm text-slate-500">' + t('totalTests') + '</span></div>';
-      content += '<div class="bg-success-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-success-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'passed\\')"><span class="block text-3xl font-bold text-success-500">' + exec.summary.passed + '</span><span class="text-sm text-slate-500">' + t('passed') + '</span></div>';
-      content += '<div class="bg-danger-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-danger-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'failed\\')"><span class="block text-3xl font-bold text-danger-500">' + exec.summary.failed + '</span><span class="text-sm text-slate-500">' + t('failed') + '</span></div>';
-      content += '<div class="bg-warning-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-warning-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'pending\\')"><span class="block text-3xl font-bold text-warning-500">' + exec.summary.skipped + '</span><span class="text-sm text-slate-500">' + t('skipped') + '</span></div>';
+      content += '<div class="bg-info-500/10 rounded-xl p-4 text-center"><span class="block text-3xl font-bold text-info-500" id="history-modal-total">' + exec.summary.total + '</span><span class="text-sm text-slate-500">' + t('totalTests') + '</span></div>';
+      content += '<div class="bg-success-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-success-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'passed\\')"><span class="block text-3xl font-bold text-success-500" id="history-modal-passed">' + exec.summary.passed + '</span><span class="text-sm text-slate-500">' + t('passed') + '</span></div>';
+      content += '<div class="bg-danger-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-danger-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'failed\\')"><span class="block text-3xl font-bold text-danger-500" id="history-modal-failed">' + exec.summary.failed + '</span><span class="text-sm text-slate-500">' + t('failed') + '</span></div>';
+      content += '<div class="bg-warning-500/10 rounded-xl p-4 text-center cursor-pointer hover:ring-2 hover:ring-warning-500" onclick="filterHistoryTests(\\'' + exec.date + '\\', \\'pending\\')"><span class="block text-3xl font-bold text-warning-500" id="history-modal-pending">' + exec.summary.skipped + '</span><span class="text-sm text-slate-500">' + t('skipped') + '</span></div>';
       content += '</div>';
 
       // Pass Rate Ring
@@ -1275,6 +1491,7 @@ class ReportGenerator {
           const data = await response.json();
           window.currentHistoryTests = data.tests || [];
           renderHistoryTests(window.currentHistoryTests, 'all');
+          updateHistoryModalStats(window.currentHistoryTests);
         }
       } catch (e) {
         // If fetch fails, use embedded data if available
@@ -1282,14 +1499,77 @@ class ReportGenerator {
       }
     }
 
+    // Update history modal stats based on filtered tests
+    function updateHistoryModalStats(allTests) {
+      const filteredTests = filterHistoryTestsByTags(allTests);
+
+      const stats = {
+        total: filteredTests.length,
+        passed: filteredTests.filter(t => t.status === 'passed').length,
+        failed: filteredTests.filter(t => t.status === 'failed').length,
+        pending: filteredTests.filter(t => t.status === 'pending').length
+      };
+
+      // Update modal stat cards
+      const totalEl = document.getElementById('history-modal-total');
+      const passedEl = document.getElementById('history-modal-passed');
+      const failedEl = document.getElementById('history-modal-failed');
+      const pendingEl = document.getElementById('history-modal-pending');
+
+      if (totalEl) totalEl.textContent = stats.total;
+      if (passedEl) passedEl.textContent = stats.passed;
+      if (failedEl) failedEl.textContent = stats.failed;
+      if (pendingEl) pendingEl.textContent = stats.pending;
+    }
+
+    // Filter history tests by tag filters
+    function filterHistoryTestsByTags(tests) {
+      const filters = getActiveFilters();
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      const hasActiveFilters = filterNames.some(name => filters[name] && filters[name].length > 0);
+
+      if (!hasActiveFilters) {
+        return tests;
+      }
+
+      return tests.filter(test => {
+        if (!test.tags) return false;
+
+        for (const filterName of filterNames) {
+          if (filters[filterName] && filters[filterName].length > 0) {
+            const testTagValue = test.tags[filterName];
+            if (!testTagValue || !filters[filterName].includes(testTagValue)) {
+              return false;
+            }
+          }
+        }
+        return true;
+      });
+    }
+
     // Render history tests
-    function renderHistoryTests(tests, filter) {
-      const filteredTests = filter === 'all' ? tests : tests.filter(t => t.status === filter);
+    function renderHistoryTests(tests, statusFilter) {
+      // First apply tag filters
+      const tagFilteredTests = filterHistoryTestsByTags(tests);
+
+      // Then apply status filter
+      const filteredTests = statusFilter === 'all' ? tagFilteredTests : tagFilteredTests.filter(t => t.status === statusFilter);
       const listEl = document.getElementById('history-tests-list');
 
       if (filteredTests.length === 0) {
         listEl.innerHTML = '<div class="text-center py-4 text-slate-500">' + t('noTestsFound') + '</div>';
         return;
+      }
+
+      // Generate tag badges for each test
+      function generateTestTagBadges(test) {
+        if (!test.tags) return '';
+        const badges = [];
+        if (test.tags.squad) badges.push('<span class="px-1 py-0.5 text-xs rounded bg-primary-500/10 text-primary-500">' + escapeHtml(test.tags.squad) + '</span>');
+        if (test.tags.executionType) badges.push('<span class="px-1 py-0.5 text-xs rounded bg-secondary-500/10 text-secondary-500">' + escapeHtml(test.tags.executionType) + '</span>');
+        if (test.tags.module) badges.push('<span class="px-1 py-0.5 text-xs rounded bg-warning-500/10 text-warning-500">' + escapeHtml(test.tags.module) + '</span>');
+        if (test.tags.functionality) badges.push('<span class="px-1 py-0.5 text-xs rounded bg-success-500/10 text-success-500">' + escapeHtml(test.tags.functionality) + '</span>');
+        return badges.length > 0 ? '<div class="flex gap-1 mt-1">' + badges.join('') + '</div>' : '';
       }
 
       let html = '';
@@ -1303,13 +1583,19 @@ class ReportGenerator {
 
         html += '<div class="history-test-item flex items-center gap-3 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-primary-500/50 cursor-pointer" data-status="' + test.status + '" onclick="showHistoryTestDetail(' + JSON.stringify(test).replace(/"/g, '&quot;') + ')">';
         html += '<div class="w-8 h-8 rounded-lg flex items-center justify-center ' + config.bg + '"><svg class="w-4 h-4 ' + config.text + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' + config.icon + '</svg></div>';
-        html += '<div class="flex-1 min-w-0"><h5 class="font-medium text-slate-900 dark:text-white text-sm truncate">' + escapeHtml(test.title) + '</h5><p class="text-xs text-slate-500 truncate">' + escapeHtml((test.suitePath || []).join(' > ')) + '</p></div>';
+        html += '<div class="flex-1 min-w-0"><h5 class="font-medium text-slate-900 dark:text-white text-sm truncate">' + escapeHtml(test.title) + '</h5><p class="text-xs text-slate-500 truncate">' + escapeHtml((test.suitePath || []).join(' > ')) + '</p>' + generateTestTagBadges(test) + '</div>';
         html += '<span class="text-xs text-slate-400 font-mono">' + formatDuration(test.duration) + '</span>';
         html += '<svg class="w-4 h-4 text-slate-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>';
         html += '</div>';
       });
 
       listEl.innerHTML = html;
+
+      // Update count in modal header if exists
+      const countEl = document.querySelector('#history-tests-count');
+      if (countEl) {
+        countEl.textContent = filteredTests.length + ' de ' + tests.length;
+      }
     }
 
     // Filter history tests
@@ -1467,6 +1753,427 @@ class ReportGenerator {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     }
+
+    // ====== DROPDOWN FILTER FUNCTIONS ======
+
+    // Toggle dropdown visibility
+    function toggleDropdown(filterName) {
+      const dropdown = document.querySelector('[data-filter="' + filterName + '"]');
+      const menu = dropdown.querySelector('.dropdown-menu');
+      const arrow = dropdown.querySelector('.dropdown-arrow');
+
+      // Close all other dropdowns
+      document.querySelectorAll('.filter-dropdown').forEach(d => {
+        if (d.dataset.filter !== filterName) {
+          d.querySelector('.dropdown-menu')?.classList.add('hidden');
+          d.querySelector('.dropdown-arrow')?.classList.remove('rotate-180');
+        }
+      });
+
+      // Toggle current dropdown
+      menu.classList.toggle('hidden');
+      arrow.classList.toggle('rotate-180');
+
+      // Focus search input when opening
+      if (!menu.classList.contains('hidden')) {
+        const searchInput = menu.querySelector('.dropdown-search');
+        if (searchInput) {
+          setTimeout(() => searchInput.focus(), 50);
+        }
+      }
+    }
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.filter-dropdown')) {
+        document.querySelectorAll('.filter-dropdown').forEach(d => {
+          d.querySelector('.dropdown-menu')?.classList.add('hidden');
+          d.querySelector('.dropdown-arrow')?.classList.remove('rotate-180');
+        });
+      }
+    });
+
+    // Select all options in a dropdown
+    function selectAllInDropdown(filterName) {
+      const dropdown = document.querySelector('[data-filter="' + filterName + '"]');
+      const checkboxes = dropdown.querySelectorAll('.dropdown-options input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        if (!cb.closest('label').classList.contains('hidden')) {
+          cb.checked = true;
+        }
+      });
+      updateFilterCount(filterName);
+      saveFiltersToLocalStorage();
+      applyFilters();
+    }
+
+    // Clear all options in a dropdown
+    function clearDropdown(filterName) {
+      const dropdown = document.querySelector('[data-filter="' + filterName + '"]');
+      const checkboxes = dropdown.querySelectorAll('.dropdown-options input[type="checkbox"]');
+      checkboxes.forEach(cb => cb.checked = false);
+      updateFilterCount(filterName);
+      saveFiltersToLocalStorage();
+      applyFilters();
+    }
+
+    // Clear all filters across all dropdowns
+    function clearAllFilters() {
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      filterNames.forEach(name => {
+        const dropdown = document.querySelector('[data-filter="' + name + '"]');
+        if (dropdown) {
+          const checkboxes = dropdown.querySelectorAll('.dropdown-options input[type="checkbox"]');
+          checkboxes.forEach(cb => cb.checked = false);
+          updateFilterCount(name);
+        }
+      });
+      saveFiltersToLocalStorage();
+      applyFilters();
+    }
+
+    // Update filter count badge
+    function updateFilterCount(filterName) {
+      const dropdown = document.querySelector('[data-filter="' + filterName + '"]');
+      const checkboxes = dropdown.querySelectorAll('.dropdown-options input[type="checkbox"]:checked');
+      const countBadge = dropdown.querySelector('.filter-count');
+      const count = checkboxes.length;
+
+      if (count > 0) {
+        countBadge.textContent = count;
+        countBadge.classList.remove('hidden');
+      } else {
+        countBadge.classList.add('hidden');
+      }
+
+      updateActiveFiltersDisplay();
+    }
+
+    // Update active filters display at bottom
+    function updateActiveFiltersDisplay() {
+      const activeFiltersContainer = document.getElementById('active-filters');
+      const activeFiltersList = document.getElementById('active-filters-list');
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      const colorMap = {
+        squad: 'primary',
+        executionType: 'secondary',
+        product: 'info',
+        module: 'warning',
+        functionality: 'success'
+      };
+
+      let hasActiveFilters = false;
+      let html = '';
+
+      filterNames.forEach(name => {
+        const dropdown = document.querySelector('[data-filter="' + name + '"]');
+        if (dropdown) {
+          const checkedBoxes = dropdown.querySelectorAll('.dropdown-options input[type="checkbox"]:checked');
+          checkedBoxes.forEach(cb => {
+            hasActiveFilters = true;
+            const color = colorMap[name];
+            html += '<span class="inline-flex items-center gap-1 px-2 py-0.5 bg-' + color + '-500/10 text-' + color + '-600 dark:text-' + color + '-400 text-xs rounded-full">';
+            html += cb.value;
+            html += '<button onclick="removeFilter(\\'' + name + '\\', \\'' + cb.value + '\\')" class="hover:text-' + color + '-700 dark:hover:text-' + color + '-300">';
+            html += '<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+            html += '</button></span>';
+          });
+        }
+      });
+
+      if (hasActiveFilters) {
+        activeFiltersContainer.classList.remove('hidden');
+        activeFiltersList.innerHTML = html;
+      } else {
+        activeFiltersContainer.classList.add('hidden');
+      }
+    }
+
+    // Remove a specific filter
+    function removeFilter(filterName, value) {
+      const dropdown = document.querySelector('[data-filter="' + filterName + '"]');
+      const checkbox = dropdown.querySelector('input[type="checkbox"][value="' + value + '"]');
+      if (checkbox) {
+        checkbox.checked = false;
+        updateFilterCount(filterName);
+        saveFiltersToLocalStorage();
+        applyFilters();
+      }
+    }
+
+    // Save filters to localStorage
+    function saveFiltersToLocalStorage() {
+      const filters = {};
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+
+      filterNames.forEach(name => {
+        const dropdown = document.querySelector('[data-filter="' + name + '"]');
+        if (dropdown) {
+          const checkedBoxes = dropdown.querySelectorAll('.dropdown-options input[type="checkbox"]:checked');
+          filters[name] = Array.from(checkedBoxes).map(cb => cb.value);
+        }
+      });
+
+      localStorage.setItem('reportFilters', JSON.stringify(filters));
+    }
+
+    // Load filters from localStorage
+    function loadFiltersFromLocalStorage() {
+      const savedFilters = localStorage.getItem('reportFilters');
+      if (!savedFilters) return;
+
+      try {
+        const filters = JSON.parse(savedFilters);
+        const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+
+        filterNames.forEach(name => {
+          if (filters[name] && filters[name].length > 0) {
+            const dropdown = document.querySelector('[data-filter="' + name + '"]');
+            if (dropdown) {
+              filters[name].forEach(value => {
+                const checkbox = dropdown.querySelector('input[type="checkbox"][value="' + value + '"]');
+                if (checkbox) {
+                  checkbox.checked = true;
+                }
+              });
+              updateFilterCount(name);
+            }
+          }
+        });
+
+        applyFilters();
+      } catch (e) {
+        console.log('Could not load saved filters:', e);
+      }
+    }
+
+    // Get current filter selections
+    function getActiveFilters() {
+      const filters = {};
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+
+      filterNames.forEach(name => {
+        const dropdown = document.querySelector('[data-filter="' + name + '"]');
+        if (dropdown) {
+          const checkedBoxes = dropdown.querySelectorAll('.dropdown-options input[type="checkbox"]:checked');
+          filters[name] = Array.from(checkedBoxes).map(cb => cb.value);
+        }
+      });
+
+      return filters;
+    }
+
+    // Check if a test matches the current filters
+    function testMatchesFilters(test, filters) {
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+
+      if (!test || !test.tags) return false;
+
+      for (const filterName of filterNames) {
+        if (filters[filterName] && filters[filterName].length > 0) {
+          const testTagValue = test.tags[filterName];
+          if (!testTagValue || !filters[filterName].includes(testTagValue)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    // Get filtered tests based on current filter selections
+    function getFilteredTests() {
+      const filters = getActiveFilters();
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      const hasActiveFilters = filterNames.some(name => filters[name] && filters[name].length > 0);
+
+      if (!hasActiveFilters) {
+        return window.allTests;
+      }
+
+      return window.allTests.filter(test => testMatchesFilters(test, filters));
+    }
+
+    // Apply filters to test list, dashboard stats, and history
+    function applyFilters() {
+      const filters = getActiveFilters();
+      const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+      const hasActiveFilters = filterNames.some(name => filters[name] && filters[name].length > 0);
+
+      // Get filtered tests
+      const filteredTests = getFilteredTests();
+
+      // Update test list visibility
+      document.querySelectorAll('.test-item').forEach(item => {
+        const testId = item.dataset.testId;
+        const test = window.allTests.find(t => t.id === testId);
+
+        if (!hasActiveFilters || testMatchesFilters(test, filters)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+
+      // Calculate filtered metrics
+      const filteredMetrics = {
+        total: filteredTests.length,
+        passed: filteredTests.filter(t => t.status === 'passed').length,
+        failed: filteredTests.filter(t => t.status === 'failed').length,
+        pending: filteredTests.filter(t => t.status === 'pending').length
+      };
+      filteredMetrics.passRate = filteredMetrics.total > 0
+        ? ((filteredMetrics.passed / filteredMetrics.total) * 100).toFixed(1)
+        : 0;
+
+      // Update dashboard stats cards
+      updateDashboardStats(filteredMetrics, hasActiveFilters);
+
+      // Update test count subtitle
+      updateFilteredTestsCount(filteredMetrics.total);
+
+      // Update history list based on filters
+      updateHistoryWithFilters(filters, hasActiveFilters);
+
+      // Update charts
+      updateChartsWithFilters(filteredMetrics);
+    }
+
+    // Update dashboard stats cards
+    function updateDashboardStats(metrics, isFiltered) {
+      // Update total tests
+      const totalEl = document.querySelector('[onclick="showTestsByStatus(\\'all\\')"] .text-3xl');
+      if (totalEl) totalEl.textContent = metrics.total;
+
+      // Update passed tests
+      const passedEl = document.querySelector('[onclick="showTestsByStatus(\\'passed\\')"] .text-3xl');
+      if (passedEl) passedEl.textContent = metrics.passed;
+      const passRateEl = document.querySelector('[onclick="showTestsByStatus(\\'passed\\')"] .rounded-full');
+      if (passRateEl) passRateEl.textContent = metrics.passRate + '%';
+
+      // Update failed tests
+      const failedEl = document.querySelector('[onclick="showTestsByStatus(\\'failed\\')"] .text-3xl');
+      if (failedEl) failedEl.textContent = metrics.failed;
+      const failRateEl = document.querySelector('[onclick="showTestsByStatus(\\'failed\\')"] .rounded-full');
+      if (failRateEl) {
+        const failRate = metrics.total > 0 ? ((metrics.failed / metrics.total) * 100).toFixed(1) : 0;
+        failRateEl.textContent = failRate + '%';
+      }
+
+      // Update pending tests
+      const pendingEl = document.querySelector('[onclick="showTestsByStatus(\\'pending\\')"] .text-3xl');
+      if (pendingEl) pendingEl.textContent = metrics.pending;
+      const pendingRateEl = document.querySelector('[onclick="showTestsByStatus(\\'pending\\')"] .rounded-full');
+      if (pendingRateEl) {
+        const pendingRate = metrics.total > 0 ? ((metrics.pending / metrics.total) * 100).toFixed(1) : 0;
+        pendingRateEl.textContent = pendingRate + '%';
+      }
+
+      // Update pass rate ring
+      const passRateRing = document.querySelector('.progress-ring-circle');
+      if (passRateRing) {
+        const offset = 339.292 - (339.292 * metrics.passRate) / 100;
+        passRateRing.style.strokeDashoffset = offset;
+      }
+      const passRateText = document.querySelector('.gradient-text');
+      if (passRateText && passRateText.closest('.relative')) {
+        passRateText.textContent = metrics.passRate + '%';
+      }
+    }
+
+    // Update charts with filtered data
+    function updateChartsWithFilters(metrics) {
+      if (typeof resultsChart !== 'undefined') {
+        resultsChart.data.datasets[0].data = [metrics.passed, metrics.failed, metrics.pending];
+        resultsChart.update();
+      }
+    }
+
+    // Update history list based on filters
+    function updateHistoryWithFilters(filters, hasActiveFilters) {
+      const historyItems = document.querySelectorAll('.history-item');
+
+      historyItems.forEach(item => {
+        if (!hasActiveFilters) {
+          item.style.display = 'flex';
+          return;
+        }
+
+        // Get history data for this item
+        const dateStr = item.getAttribute('onclick')?.match(/loadHistoryExecution\\('([^']+)'\\)/)?.[1];
+        if (!dateStr) {
+          item.style.display = 'flex';
+          return;
+        }
+
+        const historyEntry = window.historyData.find(h => h.date === dateStr);
+        if (!historyEntry || !historyEntry.tags) {
+          item.style.display = 'none';
+          return;
+        }
+
+        // Check if history entry matches filters
+        let matches = true;
+        const filterNames = ['squad', 'executionType', 'product', 'module', 'functionality'];
+        for (const filterName of filterNames) {
+          if (filters[filterName] && filters[filterName].length > 0) {
+            const historyTagValue = historyEntry.tags[filterName];
+            if (!historyTagValue || !filters[filterName].includes(historyTagValue)) {
+              matches = false;
+              break;
+            }
+          }
+        }
+
+        item.style.display = matches ? 'flex' : 'none';
+      });
+    }
+
+    // Update the test count display
+    function updateFilteredTestsCount(count) {
+      const subtitle = document.getElementById('tests-subtitle');
+      if (subtitle) {
+        const total = window.allTests.length;
+        if (count === total) {
+          subtitle.textContent = t('showingAllTests') + ' (' + total + ')';
+        } else {
+          subtitle.textContent = count + ' ' + t('total') + ' (filtrado de ' + total + ')';
+        }
+      }
+    }
+
+    // Search within dropdown
+    document.addEventListener('input', function(e) {
+      if (e.target.classList.contains('dropdown-search')) {
+        const searchValue = e.target.value.toLowerCase();
+        const dropdown = e.target.closest('.filter-dropdown');
+        const labels = dropdown.querySelectorAll('.dropdown-options label');
+
+        labels.forEach(label => {
+          const text = label.textContent.toLowerCase();
+          if (text.includes(searchValue)) {
+            label.classList.remove('hidden');
+          } else {
+            label.classList.add('hidden');
+          }
+        });
+      }
+    });
+
+    // Handle checkbox changes
+    document.addEventListener('change', function(e) {
+      if (e.target.type === 'checkbox' && e.target.closest('.dropdown-options')) {
+        const dropdown = e.target.closest('.filter-dropdown');
+        const filterName = dropdown.dataset.filter;
+        updateFilterCount(filterName);
+        saveFiltersToLocalStorage();
+        applyFilters();
+      }
+    });
+
+    // Load saved filters on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      loadFiltersFromLocalStorage();
+    });
   </script>
 
 </body>

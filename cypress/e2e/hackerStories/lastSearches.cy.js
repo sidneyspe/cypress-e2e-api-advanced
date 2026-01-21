@@ -25,7 +25,7 @@ describe('Last Searches', {
       alias: 'getNewTermStories',
     });
 
-    cy.get(SELECTORS.search.input).should('be.visible').clear();
+    cy.get(SELECTORS.search.input).should('not.be.visible').clear();
   });
 
   it('searches via the last searched term', () => {
