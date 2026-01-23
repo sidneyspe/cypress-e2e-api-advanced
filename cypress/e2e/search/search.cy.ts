@@ -5,14 +5,7 @@ describe(
   'Search',
   {
     env: { snapshotOnly: true },
-    tags: {
-      squad: 'qa-core',
-      executionType: 'smoke',
-      product: 'hacker-stories',
-      module: 'search',
-      functionality: 'e2e',
-      priority: 'critical',
-    },
+    tags: ['@smoke', '@qa-core', '@search', '@e2e', '@critical'],
   },
   () => {
     beforeEach(() => {
@@ -24,7 +17,7 @@ describe(
     });
 
     context('Search Methods', () => {
-      it('types and hits ENTER', () => {
+      it('types and hits ENTER', { tags: ['@smoke'] }, () => {
         cy.searchByEnter(testData.newTerm);
         cy.wait('@getNewTermStories');
 
@@ -35,7 +28,7 @@ describe(
         cy.get(SELECTORS.search.lastSearchButton(testData.initialTerm)).should('be.visible');
       });
 
-      it('types and clicks the submit button', () => {
+      it('types and clicks the submit button', { tags: ['@smoke'] }, () => {
         cy.searchBySubmitButton(testData.newTerm);
         cy.wait('@getNewTermStories');
 
@@ -46,7 +39,7 @@ describe(
         cy.get(SELECTORS.search.lastSearchButton(testData.initialTerm)).should('be.visible');
       });
 
-      it('types and submits the form directly', () => {
+      it('types and submits the form directly', { tags: ['@regression'] }, () => {
         cy.searchByFormSubmit(testData.newTerm);
         cy.wait('@getNewTermStories');
 

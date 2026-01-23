@@ -3,12 +3,16 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 // Gera ID unico para cada execucao
-const generateRunId = () => `run_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+const generateRunId = () =>
+  `run_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
 export default defineConfig({
   e2e: {
     baseUrl: 'https://wlsf82-hacker-stories.web.app',
-    specPattern: ['cypress/e2e/**/*.cy.{js,jsx,ts,tsx}', 'cypress/api/**/*.cy.{js,jsx,ts,tsx}'],
+    specPattern: [
+      'cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
+      'cypress/api/**/*.cy.{js,jsx,ts,tsx}',
+    ],
     supportFile: 'cypress/support/e2e.ts',
     experimentalRunAllSpecs: true,
 
@@ -22,6 +26,10 @@ export default defineConfig({
 
       fs.mkdirSync(runArtifactsDir, { recursive: true });
       fs.mkdirSync(runVideosDir, { recursive: true });
+
+      // Configura Cypress Grep para filtro por tags
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      require('@cypress/grep/src/plugin')(config);
 
       // Task para obter o runId
       on('task', {
@@ -98,5 +106,8 @@ export default defineConfig({
     apiUrl: 'https://hn.algolia.com/api/v1',
     hideCredentials: true,
     requestMode: true,
+    // Cypress Grep config
+    grepFilterSpecs: true,
+    grepOmitFiltered: true,
   },
 });

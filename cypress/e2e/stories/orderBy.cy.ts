@@ -1,18 +1,10 @@
 import { SELECTORS } from '../../support/selectors';
-import { testData } from '../../support/e2e';
 
 describe(
   'Order by',
   {
     env: { snapshotOnly: true },
-    tags: {
-      squad: 'qa-frontend',
-      executionType: 'regression',
-      product: 'hacker-stories',
-      module: 'stories',
-      functionality: 'e2e',
-      priority: 'medium',
-    },
+    tags: ['@regression', '@qa-frontend', '@stories', '@e2e', '@medium'],
   },
   () => {
     beforeEach(() => {
@@ -21,7 +13,7 @@ describe(
       cy.wait('@getStories');
     });
 
-    it('orders by title', () => {
+    it('orders by title', { tags: ['@regression', '@sorting'] }, () => {
       cy.sortBy('title');
 
       // Explicit assertions - verify sort was triggered
@@ -29,7 +21,7 @@ describe(
       cy.get(SELECTORS.stories.item).should('have.length.greaterThan', 0);
     });
 
-    it('orders by author', () => {
+    it('orders by author', { tags: ['@regression', '@sorting'] }, () => {
       cy.sortBy('author');
 
       // Explicit assertions - verify sort was triggered
@@ -37,7 +29,7 @@ describe(
       cy.get(SELECTORS.stories.item).should('have.length.greaterThan', 0);
     });
 
-    it('orders by comments', () => {
+    it('orders by comments', { tags: ['@regression', '@sorting'] }, () => {
       cy.sortBy('comments');
 
       // Explicit assertions - verify sort was triggered
@@ -45,7 +37,7 @@ describe(
       cy.get(SELECTORS.stories.item).should('have.length.greaterThan', 0);
     });
 
-    it('orders by points', () => {
+    it('orders by points', { tags: ['@regression', '@sorting'] }, () => {
       cy.sortBy('points');
 
       // Explicit assertions - verify sort was triggered

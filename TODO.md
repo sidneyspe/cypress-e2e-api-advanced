@@ -64,38 +64,59 @@ Este documento lista todos os itens que foram removidos ou não puderam ser impl
 
 ---
 
+## ✅ Itens Implementados
+
 ### 3. Cypress Grep - Filtro por Tags
 
-**Status:** Dependência instalada (`@cypress/grep`), mas não configurada
+**Status:** ✅ IMPLEMENTADO E FUNCIONANDO
 
-**Pendente:**
-- [ ] Configurar plugin no `cypress.config.ts`
-- [ ] Registrar filtros de tags no `setupNodeEvents`
-- [ ] Testar comandos de filtro:
-  ```bash
-  npm run cy:run:smoke      # Executar apenas testes smoke
-  npm run cy:run:regression # Executar apenas testes regression
-  npm run cy:run:squad:core # Executar apenas testes do squad qa-core
-  ```
+**Implementado:**
+- [x] Plugin configurado no `cypress.config.ts`
+- [x] Suporte registrado no `cypress/support/e2e.ts`
+- [x] Todos os testes atualizados com tags no formato `@cypress/grep`
+- [x] Comandos de filtro funcionando
 
-**Como implementar:**
+**Tags disponíveis:**
+- `@smoke` - Testes de smoke (6 testes)
+- `@regression` - Testes de regressão (12 testes)
+- `@api` - Testes de API (5 testes)
+- `@e2e` - Testes E2E (13 testes)
+- `@qa-core` - Squad QA Core
+- `@qa-frontend` - Squad QA Frontend
+- `@qa-api` - Squad QA API
+- `@critical`, `@high`, `@medium` - Prioridades
+- `@search`, `@stories`, `@errors` - Módulos
+- `@sorting`, `@pagination`, `@error-handling` - Funcionalidades específicas
 
-1. Adicionar no `cypress.config.ts`:
-   ```typescript
-   import registerCypressGrep from '@cypress/grep';
-   
-   setupNodeEvents(on, config) {
-     registerCypressGrep(config);
-     // ... resto da config
-     return config;
-   }
-   ```
+**Comandos disponíveis:**
+```bash
+# Executar apenas testes smoke
+npm run cy:run:smoke
+# ou
+npx cypress run --env grepTags=@smoke
 
-2. Adicionar no `cypress/support/e2e.ts`:
-   ```typescript
-   import registerCypressGrep from '@cypress/grep/src/support';
-   registerCypressGrep();
-   ```
+# Executar apenas testes de regressão
+npm run cy:run:regression
+# ou
+npx cypress run --env grepTags=@regression
+
+# Executar testes de API
+npx cypress run --env grepTags=@api
+
+# Executar testes de um squad específico
+npm run cy:run:squad:core
+# ou
+npx cypress run --env grepTags=@qa-core
+
+# Combinar tags (AND)
+npx cypress run --env grepTags="@smoke+@api"
+
+# Múltiplas tags (OR)
+npx cypress run --env grepTags="@smoke @regression"
+
+# Excluir tags
+npx cypress run --env grepTags="-@regression"
+```
 
 ---
 
@@ -211,7 +232,7 @@ moreButton: '[data-testid="more-button"]',
 - [x] EditorConfig configurado
 - [ ] SQLite configurado
 - [x] Mochawesome configurado
-- [ ] Cypress Grep configurado
+- [x] Cypress Grep configurado ✅
 
 ### Testes
 - [x] Testes E2E de Search
@@ -255,3 +276,6 @@ npm run cy:all
 **Data:** 2026-01-23
 **Versão Cypress:** 15.9.0
 **Status:** 18/18 testes passando
+
+### Histórico de Alterações
+- **2026-01-23:** Cypress Grep implementado e funcionando com filtro por tags

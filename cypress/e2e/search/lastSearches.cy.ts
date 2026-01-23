@@ -6,14 +6,7 @@ describe(
   'Last Searches',
   {
     env: { snapshotOnly: true },
-    tags: {
-      squad: 'qa-frontend',
-      executionType: 'regression',
-      product: 'hacker-stories',
-      module: 'search',
-      functionality: 'e2e',
-      priority: 'medium',
-    },
+    tags: ['@regression', '@qa-frontend', '@search', '@e2e', '@medium'],
   },
   () => {
     beforeEach(() => {
@@ -26,7 +19,7 @@ describe(
       cy.get(SELECTORS.search.input).should('be.visible').clear();
     });
 
-    it('searches via the last searched term', () => {
+    it('searches via the last searched term', { tags: ['@regression'] }, () => {
       cy.searchByEnter(testData.newTerm);
       cy.wait('@getNewTermStories');
 
@@ -44,7 +37,7 @@ describe(
       cy.get(SELECTORS.search.lastSearchButton(testData.newTerm)).should('be.visible');
     });
 
-    it('shows a max of 5 buttons for the last searched terms', () => {
+    it('shows a max of 5 buttons for the last searched terms', { tags: ['@regression'] }, () => {
       cy.interceptStories({ alias: 'getRandomStories' });
 
       const searchCount = 6;

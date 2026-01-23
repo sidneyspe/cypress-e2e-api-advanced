@@ -1,42 +1,39 @@
 describe(
   'GET /api/v1/search',
   {
-    tags: {
-      squad: 'qa-api',
-      executionType: 'regression',
-      product: 'hacker-news-api',
-      module: 'search',
-      functionality: 'api',
-      priority: 'critical',
-    },
+    tags: ['@regression', '@qa-api', '@api', '@critical'],
   },
   () => {
     const apiUrl = Cypress.env('apiUrl') || 'https://hn.algolia.com/api/v1';
 
     context('when searching with a valid term', () => {
-      it('should return 200 and stories matching the search term', () => {
-        cy.request({
-          method: 'GET',
-          url: `${apiUrl}/search`,
-          qs: {
-            query: 'React',
-            hitsPerPage: 20,
-          },
-        }).then((response) => {
-          // Explicit assertions - NOT abstracted in functions
-          expect(response.status).to.eq(200);
-          expect(response.body).to.have.property('hits');
-          expect(response.body.hits).to.be.an('array');
-          expect(response.body.hits.length).to.be.greaterThan(0);
-          expect(response.body).to.have.property('nbHits');
-          expect(response.body).to.have.property('page');
-          expect(response.body).to.have.property('nbPages');
-          expect(response.body).to.have.property('hitsPerPage');
-          expect(response.body.hitsPerPage).to.eq(20);
-        });
-      });
+      it(
+        'should return 200 and stories matching the search term',
+        { tags: ['@smoke', '@api'] },
+        () => {
+          cy.request({
+            method: 'GET',
+            url: `${apiUrl}/search`,
+            qs: {
+              query: 'React',
+              hitsPerPage: 20,
+            },
+          }).then((response) => {
+            // Explicit assertions - NOT abstracted in functions
+            expect(response.status).to.eq(200);
+            expect(response.body).to.have.property('hits');
+            expect(response.body.hits).to.be.an('array');
+            expect(response.body.hits.length).to.be.greaterThan(0);
+            expect(response.body).to.have.property('nbHits');
+            expect(response.body).to.have.property('page');
+            expect(response.body).to.have.property('nbPages');
+            expect(response.body).to.have.property('hitsPerPage');
+            expect(response.body.hitsPerPage).to.eq(20);
+          });
+        }
+      );
 
-      it('should return stories with required fields', () => {
+      it('should return stories with required fields', { tags: ['@regression', '@api'] }, () => {
         cy.request({
           method: 'GET',
           url: `${apiUrl}/search`,
@@ -61,7 +58,7 @@ describe(
     });
 
     context('when searching with pagination', () => {
-      it('should return paginated results', () => {
+      it('should return paginated results', { tags: ['@regression', '@api', '@pagination'] }, () => {
         cy.request({
           method: 'GET',
           url: `${apiUrl}/search`,
@@ -95,7 +92,7 @@ describe(
     });
 
     context('when searching with no results', () => {
-      it('should return empty hits array', () => {
+      it('should return empty hits array', { tags: ['@regression', '@api'] }, () => {
         const nonsenseQuery = `xyznonexistent${Date.now()}`;
 
         cy.request({
@@ -115,7 +112,7 @@ describe(
     });
 
     context('when searching by date', () => {
-      it('should return results sorted by date', () => {
+      it('should return results sorted by date', { tags: ['@regression', '@api'] }, () => {
         cy.request({
           method: 'GET',
           url: `${apiUrl}/search_by_date`,

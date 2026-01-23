@@ -1,22 +1,14 @@
 import { SELECTORS } from '../../support/selectors';
-import { testData } from '../../support/e2e';
 
 describe(
   'Errors',
   {
     env: { snapshotOnly: true },
-    tags: {
-      squad: 'qa-core',
-      executionType: 'regression',
-      product: 'hacker-stories',
-      module: 'error-handling',
-      functionality: 'e2e',
-      priority: 'high',
-    },
+    tags: ['@regression', '@qa-core', '@errors', '@e2e', '@high'],
   },
   () => {
     context('Server Errors', () => {
-      it('shows error message on server error (500)', () => {
+      it('shows error message on server error (500)', { tags: ['@regression', '@error-handling'] }, () => {
         cy.interceptStories({
           alias: 'getServerFailure',
           statusCode: 500,
@@ -33,7 +25,7 @@ describe(
     });
 
     context('Network Errors', () => {
-      it('shows error message on network failure', () => {
+      it('shows error message on network failure', { tags: ['@regression', '@error-handling'] }, () => {
         cy.interceptStories({
           alias: 'getNetworkFailure',
           forceNetworkError: true,
