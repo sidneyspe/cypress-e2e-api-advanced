@@ -1,0 +1,48 @@
+{
+  "hits": [
+    {
+      "title": "React - A JavaScript library for building user interfaces",
+      "url": "https://reactjs.org",
+      "author": "jordan_walke",
+      "num_comments": 150,
+      "points": 350,
+      "objectID": "1"
+    },
+    {
+      "title": "React Hooks: The Complete Guide",
+      "url": "https://example.com/react-hooks",
+      "author": "dan_abramov",
+      "num_comments": 89,
+      "points": 220,
+      "objectID": "2"
+    },
+    {
+      "title": "Understanding React State Management",
+      "url": "https://example.com/react-state",
+      "author": "sophiebits",
+      "num_comments": 45,
+      "points": 180,
+      "objectID": "3"
+    },
+    {
+      "title": "React Performance Optimization Tips",
+      "url": "https://example.com/react-performance",
+      "author": "brian_vaughn",
+      "num_comments": 32,
+      "points": 145,
+      "objectID": "4"
+    },
+    {
+      "title": "React Server Components Explained",
+      "url": "https://example.com/react-server-components",
+      "author": "dan_abramov",
+      "num_comments": 78,
+      "points": 290,
+      "objectID": "5"
+    }
+  ],
+  "nbHits": 1000,
+  "page": 0,
+  "nbPages": 50,
+  "hitsPerPage": 20
+}

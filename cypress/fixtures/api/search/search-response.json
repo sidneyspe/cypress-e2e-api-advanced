@@ -1,0 +1,35 @@
+{
+  "hits": [
+    {
+      "title": "API Test Story 1",
+      "url": "https://example.com/api-story-1",
+      "author": "api_author_1",
+      "num_comments": 50,
+      "points": 125,
+      "objectID": "api-1",
+      "created_at": "2025-01-15T10:30:00.000Z"
+    },
+    {
+      "title": "API Test Story 2",
+      "url": "https://example.com/api-story-2",
+      "author": "api_author_2",
+      "num_comments": 75,
+      "points": 200,
+      "objectID": "api-2",
+      "created_at": "2025-01-14T14:20:00.000Z"
+    },
+    {
+      "title": "API Test Story 3",
+      "url": "https://example.com/api-story-3",
+      "author": "api_author_3",
+      "num_comments": 30,
+      "points": 90,
+      "objectID": "api-3",
+      "created_at": "2025-01-13T09:45:00.000Z"
+    }
+  ],
+  "nbHits": 3,
+  "page": 0,
+  "nbPages": 1,
+  "hitsPerPage": 20
+}

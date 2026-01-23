@@ -1,0 +1,48 @@
+{
+  "hits": [
+    {
+      "title": "Story 1 - JavaScript Fundamentals",
+      "url": "https://example.com/story-1",
+      "author": "author_1",
+      "num_comments": 100,
+      "points": 250,
+      "objectID": "story-1"
+    },
+    {
+      "title": "Story 2 - TypeScript Deep Dive",
+      "url": "https://example.com/story-2",
+      "author": "author_2",
+      "num_comments": 85,
+      "points": 200,
+      "objectID": "story-2"
+    },
+    {
+      "title": "Story 3 - Node.js Best Practices",
+      "url": "https://example.com/story-3",
+      "author": "author_3",
+      "num_comments": 70,
+      "points": 175,
+      "objectID": "story-3"
+    },
+    {
+      "title": "Story 4 - GraphQL vs REST",
+      "url": "https://example.com/story-4",
+      "author": "author_4",
+      "num_comments": 120,
+      "points": 300,
+      "objectID": "story-4"
+    },
+    {
+      "title": "Story 5 - Microservices Architecture",
+      "url": "https://example.com/story-5",
+      "author": "author_5",
+      "num_comments": 55,
+      "points": 150,
+      "objectID": "story-5"
+    }
+  ],
+  "nbHits": 500,
+  "page": 0,
+  "nbPages": 25,
+  "hitsPerPage": 20
+}

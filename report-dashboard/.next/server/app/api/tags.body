@@ -1,1 +1,0 @@
-{"success":true,"data":{"squads":["qa-api","qa-core","qa-frontend"],"executionTypes":["regression","smoke"],"products":["hacker-stories"],"modules":["error-handling","search","stories"],"functionalities":["e2e","integration"]}}

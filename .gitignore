@@ -1,7 +1,38 @@
-.DS_Store
-cypress/screenshots/
-cypress/videos/
+# Dependencies
 node_modules/
 yarn.lock
+package-lock.json
+
+# Cypress artifacts
+cypress/screenshots/
+cypress/videos/
 cypress/results/
 cypress/reports/
+cypress/artifacts/
+
+# Database
+db/*.db
+db/*.db-wal
+db/*.db-shm
+
+# Build output
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
